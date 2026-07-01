@@ -1,0 +1,43 @@
+{
+  "charts": {
+    "kitsu": {
+      "app_readme": "<h1>Kitsu</h1>\n<p>Kitsu is CGWire's production-tracking web app for animation and VFX studios. This chart deploys a split self-hosted stack with Kitsu, Zou, PostgreSQL, Redis, and Meilisearch.</p>",
+      "categories": [
+        "productivity",
+        "media"
+      ],
+      "description": "Split self-hosted Kitsu/Zou production tracking stack for animation and VFX studios.",
+      "healthy": true,
+      "healthy_error": null,
+      "home": "https://kitsu.cg-wire.com/",
+      "location": "/__w/charts/charts/charts/kitsu",
+      "latest_version": "0.1.0",
+      "latest_app_version": "latest",
+      "latest_human_version": "latest_0.1.0",
+      "last_update": "2026-07-01 00:00:00",
+      "name": "kitsu",
+      "recommended": false,
+      "title": "Kitsu",
+      "maintainers": [
+        {
+          "name": "Biohazard VFX"
+        }
+      ],
+      "tags": [
+        "kitsu",
+        "cgwire",
+        "zou",
+        "production-tracking",
+        "vfx",
+        "animation"
+      ],
+      "screenshots": [],
+      "sources": [
+        "https://github.com/cgwire/kitsu",
+        "https://github.com/cgwire/zou",
+        "https://github.com/EmberLightVFX/Kitsu-for-Docker"
+      ],
+      "icon_url": "https://kitsu.cg-wire.com/kitsu.png"
+    }
+  }
+}

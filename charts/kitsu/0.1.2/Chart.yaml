@@ -2,7 +2,7 @@ apiVersion: v2
 name: kitsu
 description: Split self-hosted Kitsu/Zou production tracking stack for animation and VFX studios, packaged for TrueNAS SCALE Dragonfish.
 type: application
-version: 0.1.1
+version: 0.1.2
 appVersion: "latest"
 kubeVersion: ">=1.24.0-0"
 home: https://kitsu.cg-wire.com/

@@ -1,0 +1,373 @@
+# Next steps: Kitsu on TrueNAS Dragonfish, then RustFS/JuiceFS storage
+
+Context:
+
+- Catalog repo: <https://github.com/NicholaiVogel/truenas-kitsu-catalog.git>
+- Chart path in this repo: `truenas-catalog/charts/kitsu/0.1.1/`
+- Biohazard repo commit: `e71c521d Bump Kitsu chart for storage class fix`
+- Public catalog HEAD: `324c8e6 Bump Kitsu chart for storage class fix`
+- TrueNAS Dragonfish API/UI: `https://100.97.98.116:8443` over Tailscale
+- Current failure: release was created but pods stayed DEPLOYING because PVCs could not bind. Later hostPath retries ran into TrueNAS middleware/chart-release API timeouts. Kitsu is not currently reachable on `30080`.
+
+Do **not** spend time debugging port `30080` until the failed chart release and Kubernetes leftovers are cleaned up. `connection refused` is expected while the app has no healthy Service/Pods.
+
+---
+
+## Phase 0 — Safety rules
+
+1. Do not touch unrelated dirty `web/` changes in the Biohazard repo.
+2. Do not use `--force` or destructive database/storage options in chart jobs unless a backup exists.
+3. Prefer TrueNAS middleware (`midclt`) for app cleanup. Use direct Kubernetes cleanup only if middleware is wedged.
+4. Keep Kitsu and storage work separable:
+   - Kitsu chart proves production tracking.
+   - RustFS/JuiceFS chart proves production filesystem.
+   - Later, combine them under an umbrella chart if desired.
+
+---
+
+## Phase 1 — Recover TrueNAS from failed Kitsu releases
+
+SSH into TrueNAS over Tailscale.
+
+### 1.1 Inspect middleware state
+
+```bash
+midclt call chart.release.query | jq '.[] | {name, status, namespace, catalog, catalog_train, chart_metadata: .chart_metadata.name}'
+midclt call chart.release.query | jq '.[] | select(.name | test("kitsu"; "i"))'
+```
+
+If the command itself times out or errors, restart middleware once:
+
+```bash
+systemctl restart middlewared
+sleep 30
+midclt call core.get_jobs | jq '.[-10:]'
+```
+
+This may briefly interrupt the UI. Do not reboot yet unless middleware remains unhealthy.
+
+### 1.2 Delete the failed Kitsu release through middleware
+
+If a release named `kitsu` exists:
+
+```bash
+midclt call chart.release.delete kitsu '{"force": true}'
+```
+
+Wait and watch jobs:
+
+```bash
+watch -n 5 "midclt call core.get_jobs | jq '.[-8:]'"
+```
+
+### 1.3 Confirm Kubernetes leftovers
+
+Dragonfish uses Kubernetes underneath. Namespace is usually `ix-<release-name>`.
+
+```bash
+k3s kubectl get ns | grep -i kitsu || true
+k3s kubectl get all,pvc,secret,cm -A | grep -i kitsu || true
+```
+
+If middleware deletion succeeded, there should be no `ix-kitsu` namespace/resources.
+
+### 1.4 Last-resort cleanup only if middleware cannot delete it
+
+Use this only if `chart.release.delete` repeatedly times out/fails and the namespace is clearly stuck:
+
+```bash
+k3s kubectl delete ns ix-kitsu --wait=false
+```
+
+Then restart middleware again:
+
+```bash
+systemctl restart middlewared
+```
+
+Re-check:
+
+```bash
+midclt call chart.release.query | jq '.[] | select(.name | test("kitsu"; "i"))'
+k3s kubectl get ns | grep -i kitsu || true
+```
+
+---
+
+## Phase 2 — Verify hostPath datasets and permissions
+
+The target hostPath datasets already created are:
+
+```text
+/mnt/Pool2/Applications/Kitsu/postgres
+/mnt/Pool2/Applications/Kitsu/redis
+/mnt/Pool2/Applications/Kitsu/previews
+/mnt/Pool2/Applications/Kitsu/meilisearch
+```
+
+Verify they exist and are directories:
+
+```bash
+for d in \
+  /mnt/Pool2/Applications/Kitsu/postgres \
+  /mnt/Pool2/Applications/Kitsu/redis \
+  /mnt/Pool2/Applications/Kitsu/previews \
+  /mnt/Pool2/Applications/Kitsu/meilisearch; do
+  test -d "$d" && echo "OK $d" || echo "MISSING $d"
+done
+```
+
+Because the chart uses `hostPath.type=Directory`, missing paths will fail safely. That is intentional.
+
+If first install is allowed to create fresh DB contents, make sure the directories are empty or contain only expected app data:
+
+```bash
+find /mnt/Pool2/Applications/Kitsu -maxdepth 2 -mindepth 1 -type d -print -exec sh -c 'echo "--- $1"; ls -la "$1" | sed -n "1,20p"' sh {} \;
+```
+
+---
+
+## Phase 3 — Reinstall Kitsu using hostPath, not PVC
+
+In TrueNAS Apps UI:
+
+1. Refresh/sync the `KITSU` catalog.
+2. Install `Kitsu` version `0.1.1`.
+3. Use these important settings:
+
+```yaml
+service:
+  web:
+    nodePort: 30080
+
+persistence:
+  enabled: true
+  type: hostPath
+  storageClassName: ""
+  accessMode: ReadWriteOnce
+  postgresql:
+    hostPath: /mnt/Pool2/Applications/Kitsu/postgres
+  redis:
+    hostPath: /mnt/Pool2/Applications/Kitsu/redis
+  previews:
+    hostPath: /mnt/Pool2/Applications/Kitsu/previews
+  meilisearch:
+    hostPath: /mnt/Pool2/Applications/Kitsu/meilisearch
+```
+
+Set an explicit admin password for first install to avoid needing to fetch generated secrets during bring-up:
+
+```yaml
+zou:
+  admin:
+    email: admin@example.com
+    password: <temporary-strong-password>
+```
+
+Keep Meilisearch enabled for now unless it causes resource pressure.
+
+---
+
+## Phase 4 — Observe Kitsu startup
+
+After install starts:
+
+```bash
+k3s kubectl get pods -n ix-kitsu -w
+```
+
+In another SSH session:
+
+```bash
+k3s kubectl get events -n ix-kitsu --sort-by=.metadata.creationTimestamp | tail -80
+```
+
+Expected progression:
+
+1. Postgres pod starts and becomes ready.
+2. Redis pod starts and becomes ready.
+3. Meilisearch pod starts and becomes ready.
+4. Zou API starts, waits for DB/Redis/Meili, runs DB init/upgrade/init-data/admin creation, then serves on `:5000`.
+5. Zou events starts on `:5001`.
+6. Kitsu frontend starts and proxies `/api` and `/socket.io`.
+7. `http://100.97.98.116:30080/` becomes reachable.
+
+Useful logs:
+
+```bash
+k3s kubectl logs -n ix-kitsu statefulset/kitsu-postgresql --tail=100
+k3s kubectl logs -n ix-kitsu statefulset/kitsu-redis --tail=100
+k3s kubectl logs -n ix-kitsu statefulset/kitsu-meilisearch --tail=100
+k3s kubectl logs -n ix-kitsu deploy/kitsu-zou-api --tail=200
+k3s kubectl logs -n ix-kitsu deploy/kitsu --tail=100
+```
+
+Actual resource names may be release-prefixed. If unsure:
+
+```bash
+k3s kubectl get deploy,statefulset,svc,pvc -n ix-kitsu
+```
+
+---
+
+## Phase 5 — If it fails again, diagnose in this order
+
+### 5.1 PVC/hostPath issues
+
+```bash
+k3s kubectl describe pod -n ix-kitsu <pod-name>
+k3s kubectl get events -n ix-kitsu --sort-by=.metadata.creationTimestamp | tail -120
+```
+
+If errors mention PVC binding, the install is still using `persistence.type=pvc` or TrueNAS did not pass values as expected.
+
+If errors mention hostPath path missing, fix the dataset/path spelling.
+
+### 5.2 Image pull issues
+
+```bash
+k3s kubectl describe pod -n ix-kitsu <pod-name> | grep -A5 -B5 -i 'pull\|image'
+```
+
+Check that TrueNAS can pull:
+
+- `ghcr.io/emberlightvfx/kitsu-for-docker:latest`
+- `ghcr.io/emberlightvfx/zou-for-docker:latest`
+- `postgres:15-alpine`
+- `redis:7-alpine`
+- `getmeili/meilisearch:v1.8.3`
+
+### 5.3 Zou bootstrap issue
+
+Check API logs:
+
+```bash
+k3s kubectl logs -n ix-kitsu deploy/kitsu-zou-api --tail=300
+```
+
+Known thing to verify: the chart currently runs:
+
+```sh
+zou create-admin "$ZOU_ADMIN_EMAIL" --password="$ZOU_ADMIN_PASSWORD" || true
+```
+
+Zou docs show:
+
+```sh
+zou create-admin --password <password> <email>
+```
+
+If admin creation silently fails, patch the chart command order in `templates/configmap.yaml`, bump chart version, regenerate catalog metadata, push, resync, upgrade.
+
+### 5.4 Frontend proxy issue
+
+If pods are healthy but UI cannot call API:
+
+```bash
+curl -i http://100.97.98.116:30080/
+curl -i http://100.97.98.116:30080/api
+```
+
+Then inspect Kitsu nginx config and logs.
+
+---
+
+## Phase 6 — Only after Kitsu works: create `biohazard-storage` chart
+
+Do not mix storage platform work into the Kitsu chart until the Kitsu app is stable.
+
+Create a new chart:
+
+```text
+truenas-catalog/charts/biohazard-storage/0.1.0/
+```
+
+Initial components:
+
+1. RustFS StatefulSet + Service
+2. JuiceFS metadata Postgres StatefulSet + Service
+3. JuiceFS bootstrap Job
+4. Secret generation/preservation helper
+5. TrueNAS questions for hostPath datasets and NodePorts
+6. NOTES with Windows/macOS/Linux mount instructions
+
+Suggested datasets:
+
+```text
+/mnt/Pool2/Applications/BiohazardStorage/rustfs
+/mnt/Pool2/Applications/BiohazardStorage/juicefs-postgres
+/mnt/Pool2/Applications/BiohazardStorage/backups
+```
+
+Suggested exposed ports over Tailscale/VPN only:
+
+```text
+RustFS S3:       30900 -> pod 9000
+RustFS Console:  30901 -> pod 9001, optional/VPN only
+JuiceFS PG:      30432 -> pod 5432
+```
+
+JuiceFS clients need access to both RustFS S3 and the JuiceFS metadata DB. Kitsu does not.
+
+---
+
+## Phase 7 — Prove storage before umbrella integration
+
+From a Linux workstation/agent over Tailscale:
+
+1. Install JuiceFS.
+2. Mount `/show` using the generated metadata URL.
+3. Run:
+
+```bash
+juicefs bench /show
+mkdir -p /show/projects/_smoke
+printf 'hello from juicefs\n' >/show/projects/_smoke/hello.txt
+cat /show/projects/_smoke/hello.txt
+```
+
+Then test macOS and Windows clients.
+
+Windows smoke test must include:
+
+- mount as `X:`
+- create/edit/delete files
+- open a sample Nuke/Houdini/Blender/Maya file if available
+- disconnect/reconnect VPN
+- verify cache behavior
+
+---
+
+## Phase 8 — Kitsu + filesystem integration
+
+Once both Kitsu and JuiceFS are independently stable:
+
+1. Add a Kitsu file tree descriptor for canonical `/show` paths.
+2. Add a small sync worker using Gazu/Zou API that creates directories and `.kitsu.json` markers.
+3. Standardize paths:
+
+```text
+/show/projects/<Project>/shots/<Sequence>/<Shot>/<TaskType>
+/show/projects/<Project>/assets/<AssetType>/<Asset>/<TaskType>
+/show/projects/<Project>/publish
+/show/projects/<Project>/delivery
+/show/projects/<Project>/scratch/agents
+```
+
+4. Agents should always work under `/show` and use Kitsu IDs from `.kitsu.json` when present.
+
+---
+
+## Definition of done for the immediate next milestone
+
+Kitsu milestone is complete when:
+
+- `midclt call chart.release.query` shows Kitsu ACTIVE/healthy.
+- All pods in `ix-kitsu` are Running/Ready.
+- `http://100.97.98.116:30080/` loads the Kitsu UI over Tailscale.
+- Admin login works.
+- A project can be created.
+- Preview upload works and writes under `/mnt/Pool2/Applications/Kitsu/previews`.
+- Rebooting/restarting the app preserves Postgres data and previews.
+
+Storage milestone begins only after this is true.

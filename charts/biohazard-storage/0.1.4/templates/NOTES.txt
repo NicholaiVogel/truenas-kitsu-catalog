@@ -1,0 +1,6 @@
+Biohazard storage stack installed.
+RustFS S3: http://<node>:{{ .Values.network.rustfsS3NodePort }}
+RustFS Console: http://<node>:{{ .Values.network.rustfsConsoleNodePort }}
+JuiceFS Postgres metadata DB: <node>:{{ .Values.network.postgresNodePort }}
+JuiceFS volume: {{ .Values.juicefs.volumeName }}
+Bucket: {{ .Values.rustfs.bucket }}

@@ -4,18 +4,16 @@ Context:
 
 - Catalog repo: <https://github.com/NicholaiVogel/truenas-kitsu-catalog.git>
 - Chart path in this repo: `truenas-catalog/charts/kitsu/`
-- Biohazard repo commit: `11cffcff Add host-network mode to Tailnet bridge chart`
-- Public catalog HEAD: `08c1bcf Add host-network mode to Tailnet bridge chart`
+- Biohazard repo commit: `969b2c2c Document Tailnet bridge deployment state`
+- Public catalog HEAD: `8cee1eb Document Tailnet bridge deployment state`
 - TrueNAS Dragonfish API/UI: `https://100.97.98.116:8443` over Tailscale or `https://192.168.1.128:8443` on LAN
 - Current Kitsu status: `kitsu-prod` is live on chart `0.1.3`, `ACTIVE`, `7/7` pods available.
 - Current Kitsu endpoints:
   - `http://192.168.1.128:30080/`
   - `http://100.97.98.116:30080/`
-- Current Nextcloud endpoints:
-  - LAN legacy URL preserved: `http://192.168.1.128:9001/`
-  - LAN native NodePort after workaround: `http://192.168.1.128:30091/`
-  - Tailnet working fallback: `http://100.97.98.116:19001/`
-  - Tailnet `http://100.97.98.116:9001/` still resets before traffic reaches Kubernetes/host-network proxy; treat as a host/Tailscale packet-handling issue, not a Nextcloud app-health issue.
+- Current Nextcloud endpoint must remain on its native TrueNAS app port:
+  - `http://192.168.1.128:9001/`
+  - `http://100.97.98.116:9001/` is the intended Tailnet URL, but currently resets from this client.
 
 ---
 
@@ -405,7 +403,7 @@ Important notes:
 - The original release name `kitsu` hit a TrueNAS stale release-dataset issue after delete/recreate: `/mnt/Pool2/ix-applications/releases/kitsu/charts/0.1.2` already existed.
 - The working release is named `kitsu-prod` in namespace `ix-kitsu-prod`.
 - Kitsu Tailnet access was restored with chart `0.1.3` using an externalIP Service for `100.97.98.116`.
-- Nextcloud's native NodePort was moved from `9001` to `30091` so a bridge/proxy can preserve LAN `9001` and provide a Tailnet fallback.
+- Nextcloud must remain on native app port `9001`; do not move it to another port as a workaround.
 
 Validated state:
 
@@ -430,19 +428,16 @@ Chart fixes shipped:
 
 - Kitsu `0.1.2` adds hostPath permission init containers for PostgreSQL, Redis, Meilisearch, and Zou preview storage.
 - Kitsu `0.1.3` adds optional Tailnet externalIP exposure for the Kitsu web service.
-- `tailnet-bridges` `0.1.1` adds an in-cluster socat proxy for cross-namespace app access.
-- `tailnet-bridges` `0.1.2` adds optional host-network proxy mode for ports that kube externalIPs cannot claim.
 - Catalog metadata marks latest chart versions correctly and includes changelog metadata required by TrueNAS upgrade summary.
 
 Nextcloud Tailnet note:
 
-- `http://100.97.98.116:19001/status.php` returns Nextcloud status JSON.
-- `http://100.97.98.116:19001/apps/files/files/15675289?dir=/02_Projects/Aranoke` reaches Nextcloud and returns `401 Unauthorized` when unauthenticated, which confirms routing works.
-- `http://100.97.98.116:9001/` still resets even with Nextcloud moved off native `9001`, externalIP proxy on `9001`, and a host-network `:9001` proxy active. Because `192.168.1.128:9001` works and `100.97.98.116:19001` works, the remaining `100.97.98.116:9001` issue is likely stale Tailscale/host packet handling for that exact port.
+- Nextcloud is restored to native app port `9001` and is `ACTIVE 3/3`.
+- `http://192.168.1.128:9001/status.php` returns Nextcloud status JSON.
+- `http://100.97.98.116:9001/status.php` still resets from this client. Do not change the Nextcloud app port to work around this; investigate Tailscale/host networking while preserving port `9001`.
 
 Next recommended step before Phase 6:
 
-1. If exact Tailnet `9001` is required, inspect host-level Tailscale/packet rules directly on TrueNAS (`tailscale serve status`, listeners, nftables/iptables) and clear the stale port handler.
-2. Otherwise use the working Tailnet fallback `http://100.97.98.116:19001/` for Nextcloud.
-3. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
-4. Use `kitsu-prod` as the live Kitsu release unless/until the stale `kitsu` release dataset is safely removed.
+1. If exact Tailnet `9001` access is required, inspect host-level Tailscale/packet rules directly on TrueNAS (`tailscale serve status`, listeners, nftables/iptables) while keeping Nextcloud on `9001`.
+2. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
+3. Use `kitsu-prod` as the live Kitsu release unless/until the stale `kitsu` release dataset is safely removed.

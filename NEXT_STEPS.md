@@ -371,3 +371,59 @@ Kitsu milestone is complete when:
 - Rebooting/restarting the app preserves Postgres data and previews.
 
 Storage milestone begins only after this is true.
+
+---
+
+## 2026-07-01 deployment result
+
+The Kitsu stack is working on the LAN after switching TrueNAS Apps/Kubernetes to the current `192.168.1.x` network.
+
+Current working endpoint:
+
+```text
+http://192.168.1.128:30080/
+```
+
+Current working TrueNAS API/UI endpoint:
+
+```text
+https://192.168.1.128:8443
+```
+
+Important notes:
+
+- The previous portal IP `10.0.0.128` is stale for the current network.
+- The router/network is `192.168.1.1/24`.
+- Kubernetes `node_ip` was changed to `192.168.1.128`.
+- `192.168.1.128/24` was persisted on interface `enp37s0f0` so it appears in Kubernetes bind choices.
+- The Tailscale endpoint `100.97.98.116` stopped responding after the network change; use LAN until Tailscale is repaired/verified.
+- The original release name `kitsu` hit a TrueNAS stale release-dataset issue after delete/recreate: `/mnt/Pool2/ix-applications/releases/kitsu/charts/0.1.2` already existed.
+- The working release is named `kitsu-prod` in namespace `ix-kitsu-prod`.
+
+Validated state:
+
+- `kitsu-prod` is `ACTIVE` on chart `0.1.2`.
+- Pod status is `7/7` available.
+- `GET http://192.168.1.128:30080/` returns the Kitsu frontend HTML.
+- `GET http://192.168.1.128:30080/api` returns Zou API version `1.0.52`.
+- Admin login with `admin@example.com` works.
+- Project creation works.
+- Preview upload works via Gazu/Zou.
+- Uploaded preview files were confirmed under `/mnt/Pool2/Applications/Kitsu/previews`, including:
+  - `pictures/original/306/796/30679670-52e6-475b-9fe7-330850e170e0`
+  - `pictures/thumbnails/306/796/30679670-52e6-475b-9fe7-330850e170e0`
+  - `pictures/thumbnails/squ/are/square-30679670-52e6-475b-9fe7-330850e170e0`
+  - `pictures/previews/306/796/30679670-52e6-475b-9fe7-330850e170e0`
+- A TrueNAS `chart.release.redeploy` of `kitsu-prod` completed and returned to `ACTIVE 7/7`.
+- Post-redeploy API/project/preview checks passed.
+
+Chart fixes shipped:
+
+- `0.1.2` adds hostPath permission init containers for PostgreSQL, Redis, Meilisearch, and Zou preview storage.
+- Catalog metadata now marks `0.1.2` as latest and includes changelog metadata required by TrueNAS upgrade summary.
+
+Next recommended step before Phase 6:
+
+1. Repair or intentionally replace the TrueNAS Tailscale path if remote access over Tailnet is still required.
+2. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
+3. Use `kitsu-prod` as the live release unless/until the stale `kitsu` release dataset is safely removed.

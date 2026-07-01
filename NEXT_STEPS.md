@@ -11,9 +11,10 @@ Context:
 - Current Kitsu endpoints:
   - `http://192.168.1.128:30080/`
   - `http://100.97.98.116:30080/`
-- Current Nextcloud endpoint must remain on its native TrueNAS app port:
-  - `http://192.168.1.128:9001/`
-  - `http://100.97.98.116:9001/` is the intended Tailnet URL, but currently resets from this client.
+- Current Nextcloud endpoint remains on native TrueNAS app port `9001` with HTTPS enabled:
+  - `https://192.168.1.128:9001/`
+  - `https://100.97.98.116:9001/`
+  - Note: the active certificate is the TrueNAS default certificate, so browsers may warn for IP-based URLs.
 
 ---
 
@@ -403,7 +404,9 @@ Important notes:
 - The original release name `kitsu` hit a TrueNAS stale release-dataset issue after delete/recreate: `/mnt/Pool2/ix-applications/releases/kitsu/charts/0.1.2` already existed.
 - The working release is named `kitsu-prod` in namespace `ix-kitsu-prod`.
 - Kitsu Tailnet access was restored with chart `0.1.3` using an externalIP Service for `100.97.98.116`.
-- Nextcloud must remain on native app port `9001`; do not move it to another port as a workaround.
+- Nextcloud remains on native app port `9001`; do not move it to another port as a workaround.
+- Nextcloud HTTPS was enabled on `9001` using the TrueNAS default certificate (`certificateID: 1`).
+- The stale Tailscale Serve backend for Tailnet `9001` was corrected from `10.0.0.128:9001` to `192.168.1.128:9001`.
 
 Validated state:
 
@@ -432,12 +435,15 @@ Chart fixes shipped:
 
 Nextcloud Tailnet note:
 
-- Nextcloud is restored to native app port `9001` and is `ACTIVE 3/3`.
-- `http://192.168.1.128:9001/status.php` returns Nextcloud status JSON.
-- `http://100.97.98.116:9001/status.php` still resets from this client. Do not change the Nextcloud app port to work around this; investigate Tailscale/host networking while preserving port `9001`.
+- Nextcloud is on native app port `9001` and is `ACTIVE 4/4`.
+- Tailscale Serve was binding `100.97.98.116:9001` and forwarding to stale `10.0.0.128:9001`, which caused resets after the LAN moved to `192.168.1.x`.
+- Tailscale Serve now forwards Tailnet `9001` to `192.168.1.128:9001`.
+- `GET https://100.97.98.116:9001/status.php` returns Nextcloud status JSON when certificate verification is skipped/accepted.
+- `GET https://100.97.98.116:9001/apps/files/files/15675289?dir=/02_Projects/Aranoke` reaches Nextcloud and returns `401 Unauthorized` when unauthenticated, confirming routing works.
+- A temporary `hostnet-diag` diagnostics release was used and deleted after verification.
 
 Next recommended step before Phase 6:
 
-1. If exact Tailnet `9001` access is required, inspect host-level Tailscale/packet rules directly on TrueNAS (`tailscale serve status`, listeners, nftables/iptables) while keeping Nextcloud on `9001`.
+1. Optionally replace the default TrueNAS certificate with a certificate matching the Tailnet DNS name/IP if browser certificate warnings are unacceptable.
 2. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
 3. Use `kitsu-prod` as the live Kitsu release unless/until the stale `kitsu` release dataset is safely removed.

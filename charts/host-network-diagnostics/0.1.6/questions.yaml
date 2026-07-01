@@ -1,0 +1,23 @@
+groups:
+  - name: Diagnostics
+    description: Configure temporary host network diagnostics.
+questions:
+  - variable: image
+    label: Image
+    group: Diagnostics
+    schema:
+      type: dict
+      attrs:
+        - variable: repository
+          label: Repository
+          schema: { type: string, required: true, default: nicolaka/netshoot }
+        - variable: tag
+          label: Tag
+          schema: { type: string, required: true, default: latest }
+        - variable: pullPolicy
+          label: Pull Policy
+          schema: { type: string, required: true, default: IfNotPresent }
+  - variable: sleepSeconds
+    label: Sleep Seconds
+    group: Diagnostics
+    schema: { type: int, required: true, default: 900, min: 60, max: 3600 }

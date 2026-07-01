@@ -592,5 +592,104 @@
                 }
             ]
         }
+    },
+    "0.1.6": {
+        "healthy": true,
+        "supported": true,
+        "healthy_error": null,
+        "location": "/__w/charts/charts/charts/host-network-diagnostics/0.1.6",
+        "last_update": "2026-07-01 00:00:00",
+        "required_features": [],
+        "human_version": "0.1.6",
+        "version": "0.1.6",
+        "changelog": "Add read-only tailscale pod CLI status and serve status output.",
+        "chart_metadata": {
+            "apiVersion": "v2",
+            "name": "host-network-diagnostics",
+            "description": "Temporary read-only host network diagnostics for TrueNAS app/Tailscale port issues.",
+            "type": "application",
+            "version": "0.1.6",
+            "appVersion": "0.1.6",
+            "kubeVersion": ">=1.24.0-0",
+            "annotations": {
+                "title": "Host Network Diagnostics"
+            },
+            "maintainers": [
+                {
+                    "name": "Biohazard VFX",
+                    "url": "https://biohazardvfx.com/",
+                    "email": "nicholai@biohazardvfx.com"
+                }
+            ]
+        },
+        "app_metadata": {
+            "runAsContext": [],
+            "capabilities": [],
+            "hostMounts": [
+                {
+                    "hostPath": "/",
+                    "description": "Read-only host root mount for diagnostics only."
+                }
+            ]
+        },
+        "schema": {
+            "groups": [
+                {
+                    "name": "Diagnostics",
+                    "description": "Configure temporary host network diagnostics."
+                }
+            ],
+            "questions": [
+                {
+                    "variable": "image",
+                    "label": "Image",
+                    "group": "Diagnostics",
+                    "schema": {
+                        "type": "dict",
+                        "attrs": [
+                            {
+                                "variable": "repository",
+                                "label": "Repository",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "nicolaka/netshoot"
+                                }
+                            },
+                            {
+                                "variable": "tag",
+                                "label": "Tag",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "latest"
+                                }
+                            },
+                            {
+                                "variable": "pullPolicy",
+                                "label": "Pull Policy",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "IfNotPresent"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "variable": "sleepSeconds",
+                    "label": "Sleep Seconds",
+                    "group": "Diagnostics",
+                    "schema": {
+                        "type": "int",
+                        "required": true,
+                        "default": 900,
+                        "min": 60,
+                        "max": 3600
+                    }
+                }
+            ]
+        }
     }
 }

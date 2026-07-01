@@ -1,0 +1,39 @@
+{{- if and .Values.persistence.enabled (eq .Values.persistence.type "pvc") }}
+{{- $root := . }}
+{{- range $name, $cfg := dict "postgresql" .Values.persistence.postgresql "redis" .Values.persistence.redis "previews" .Values.persistence.previews }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kitsu.component" (dict "root" $root "component" $name) }}
+  labels:
+    {{- include "kitsu.labels" $root | nindent 4 }}
+spec:
+  accessModes:
+    - {{ $root.Values.persistence.accessMode | quote }}
+  {{- if $root.Values.persistence.storageClassName }}
+  storageClassName: {{ $root.Values.persistence.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $cfg.size | quote }}
+{{- end }}
+{{- if .Values.meilisearch.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "meilisearch") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode | quote }}
+  {{- if .Values.persistence.storageClassName }}
+  storageClassName: {{ .Values.persistence.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.meilisearch.size | quote }}
+{{- end }}
+{{- end }}

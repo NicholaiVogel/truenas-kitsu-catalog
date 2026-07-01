@@ -1,0 +1,224 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "zou-api") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-api
+spec:
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+  selector:
+    {{- include "kitsu.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "zou-events") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-events
+spec:
+  ports:
+    - name: http
+      port: 5001
+      targetPort: http
+  selector:
+    {{- include "kitsu.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-events
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "zou-api") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-api
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "kitsu.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zou-api
+  template:
+    metadata:
+      labels:
+        {{- include "kitsu.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: zou-api
+    spec:
+      containers:
+        - name: zou-api
+          image: {{ include "kitsu.image" .Values.images.zou | quote }}
+          imagePullPolicy: {{ .Values.images.zou.pullPolicy }}
+          command: ["/bin/sh", "/opt/kitsu-chart/zou-entrypoint.sh", "api"]
+          ports:
+            - name: http
+              containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: {{ include "kitsu.fullname" . }}-env
+            - secretRef:
+                name: {{ include "kitsu.fullname" . }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /opt/kitsu-chart
+            - name: previews
+              mountPath: /opt/zou/previews
+            - name: tmp
+              mountPath: /tmp/zou
+          resources:
+            {{- toYaml .Values.resources.zouApi | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            failureThreshold: 12
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            failureThreshold: 60
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "kitsu.fullname" . }}-scripts
+            defaultMode: 493
+        - name: tmp
+          emptyDir: {}
+        - name: previews
+          {{- if and .Values.persistence.enabled (eq .Values.persistence.type "hostPath") }}
+          hostPath:
+            path: {{ required "persistence.previews.hostPath is required when persistence.type=hostPath" .Values.persistence.previews.hostPath | quote }}
+            type: Directory
+          {{- else if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kitsu.component" (dict "root" . "component" "previews") }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "zou-events") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-events
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kitsu.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zou-events
+  template:
+    metadata:
+      labels:
+        {{- include "kitsu.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: zou-events
+    spec:
+      containers:
+        - name: zou-events
+          image: {{ include "kitsu.image" .Values.images.zou | quote }}
+          imagePullPolicy: {{ .Values.images.zou.pullPolicy }}
+          command: ["/bin/sh", "/opt/kitsu-chart/zou-entrypoint.sh", "events"]
+          ports:
+            - name: http
+              containerPort: 5001
+          envFrom:
+            - configMapRef:
+                name: {{ include "kitsu.fullname" . }}-env
+            - secretRef:
+                name: {{ include "kitsu.fullname" . }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /opt/kitsu-chart
+            - name: previews
+              mountPath: /opt/zou/previews
+            - name: tmp
+              mountPath: /tmp/zou
+          resources:
+            {{- toYaml .Values.resources.zouEvents | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "kitsu.fullname" . }}-scripts
+            defaultMode: 493
+        - name: tmp
+          emptyDir: {}
+        - name: previews
+          {{- if and .Values.persistence.enabled (eq .Values.persistence.type "hostPath") }}
+          hostPath:
+            path: {{ required "persistence.previews.hostPath is required when persistence.type=hostPath" .Values.persistence.previews.hostPath | quote }}
+            type: Directory
+          {{- else if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kitsu.component" (dict "root" . "component" "previews") }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- if .Values.jobs.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "zou-jobs") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: zou-jobs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kitsu.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zou-jobs
+  template:
+    metadata:
+      labels:
+        {{- include "kitsu.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: zou-jobs
+    spec:
+      containers:
+        - name: zou-jobs
+          image: {{ include "kitsu.image" .Values.images.zou | quote }}
+          imagePullPolicy: {{ .Values.images.zou.pullPolicy }}
+          command: ["/bin/sh", "/opt/kitsu-chart/zou-entrypoint.sh", "jobs"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "kitsu.fullname" . }}-env
+            - secretRef:
+                name: {{ include "kitsu.fullname" . }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /opt/kitsu-chart
+            - name: previews
+              mountPath: /opt/zou/previews
+            - name: tmp
+              mountPath: /tmp/zou
+          resources:
+            {{- toYaml .Values.resources.zouJobs | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "kitsu.fullname" . }}-scripts
+            defaultMode: 493
+        - name: tmp
+          emptyDir: {}
+        - name: previews
+          {{- if and .Values.persistence.enabled (eq .Values.persistence.type "hostPath") }}
+          hostPath:
+            path: {{ required "persistence.previews.hostPath is required when persistence.type=hostPath" .Values.persistence.previews.hostPath | quote }}
+            type: Directory
+          {{- else if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kitsu.component" (dict "root" . "component" "previews") }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

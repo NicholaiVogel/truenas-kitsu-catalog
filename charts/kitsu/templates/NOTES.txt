@@ -1,0 +1,13 @@
+Kitsu split-stack chart is installed.
+
+{{- if eq .Values.service.type "NodePort" }}
+Open Kitsu at: http://<truenas-node-ip>:{{ .Values.service.web.nodePort }}/
+{{- else }}
+Service: {{ include "kitsu.fullname" . }}:{{ .Values.service.web.port }}
+{{- end }}
+
+Bootstrap admin:
+  login: {{ .Values.zou.admin.email }}
+  password: the value supplied in zou.admin.password, or generated in Secret/{{ include "kitsu.fullname" . }} key ZOU_ADMIN_PASSWORD
+
+This chart deploys separate Kitsu, Zou API, Zou Events, PostgreSQL, Redis, and optional Meilisearch/job-worker services. It does not use the CGWire all-in-one trial image.

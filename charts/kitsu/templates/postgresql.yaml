@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "postgresql") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  ports:
+    - name: postgresql
+      port: {{ .Values.postgresql.port }}
+      targetPort: postgresql
+  selector:
+    {{- include "kitsu.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "postgresql") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  serviceName: {{ include "kitsu.component" (dict "root" . "component" "postgresql") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kitsu.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "kitsu.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: {{ include "kitsu.image" .Values.images.postgres | quote }}
+          imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+          ports:
+            - name: postgresql
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kitsu.fullname" . }}
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            {{- toYaml .Values.resources.postgresql | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgresql.username | quote }}, "-d", {{ .Values.postgresql.database | quote }}]
+            periodSeconds: 10
+      volumes:
+        - name: data
+          {{- if and .Values.persistence.enabled (eq .Values.persistence.type "hostPath") }}
+          hostPath:
+            path: {{ required "persistence.postgresql.hostPath is required when persistence.type=hostPath" .Values.persistence.postgresql.hostPath | quote }}
+            type: Directory
+          {{- else if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kitsu.component" (dict "root" . "component" "postgresql") }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

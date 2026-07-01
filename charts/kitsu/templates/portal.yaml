@@ -1,0 +1,13 @@
+{{- if eq .Values.service.type "NodePort" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+data:
+  path: /
+  port: {{ .Values.service.web.nodePort | quote }}
+  host: $node_ip
+  protocol: http
+{{- end }}

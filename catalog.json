@@ -73,6 +73,38 @@
       "screenshots": [],
       "sources": [],
       "icon_url": "https://tailscale.com/favicon.ico"
+    },
+    "host-network-diagnostics": {
+      "app_readme": "<h1>Host Network Diagnostics</h1>\n<p>Temporary read-only host network diagnostics.</p>",
+      "categories": [
+        "networking"
+      ],
+      "description": "Temporary read-only host network diagnostics for TrueNAS app/Tailscale port issues.",
+      "healthy": true,
+      "healthy_error": null,
+      "home": "https://www.truenas.com/",
+      "location": "/__w/charts/charts/charts/host-network-diagnostics",
+      "latest_version": "0.1.0",
+      "latest_app_version": "0.1.0",
+      "latest_human_version": "0.1.0",
+      "last_update": "2026-07-01 00:00:00",
+      "name": "host-network-diagnostics",
+      "recommended": false,
+      "title": "Host Network Diagnostics",
+      "maintainers": [
+        {
+          "name": "Biohazard VFX",
+          "url": "https://biohazardvfx.com/",
+          "email": "nicholai@biohazardvfx.com"
+        }
+      ],
+      "tags": [
+        "diagnostics",
+        "networking"
+      ],
+      "screenshots": [],
+      "sources": [],
+      "icon_url": "https://www.truenas.com/favicon.ico"
     }
   }
 }

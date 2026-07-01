@@ -447,3 +447,85 @@ Next recommended step before Phase 6:
 1. Optionally replace the default TrueNAS certificate with a certificate matching the Tailnet DNS name/IP if browser certificate warnings are unacceptable.
 2. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
 3. Use `kitsu-prod` as the live Kitsu release unless/until the stale `kitsu` release dataset is safely removed.
+
+---
+
+## 2026-07-01 storage milestone result
+
+The dedicated RustFS + JuiceFS storage stack is deployed separately from Kitsu/Nextcloud.
+
+Live release:
+
+- Release: `biohazard-storage`
+- Namespace: `ix-biohazard-storage`
+- Chart: `0.1.2`
+- Status: `ACTIVE`, desired app pods `2/2` available
+- RustFS image: `rustfs/rustfs:latest`
+- JuiceFS client image for format jobs: `juicedata/mount:ce-v1.3.1`
+
+Datasets:
+
+```text
+/mnt/Pool2/Applications/JuiceFS/rustfs
+/mnt/Pool2/Applications/JuiceFS/postgres
+```
+
+LAN endpoints validated from a Linux client:
+
+```text
+RustFS S3:                 http://192.168.1.128:30900
+RustFS Console:            http://192.168.1.128:30901
+JuiceFS PostgreSQL meta:   192.168.1.128:30432
+JuiceFS volume name:       biohazard
+JuiceFS bucket:            juicefs-chunks
+```
+
+Important operational notes:
+
+- The JuiceFS metadata database is dedicated to JuiceFS and separate from Kitsu PostgreSQL.
+- The RustFS bucket is dedicated to JuiceFS chunks.
+- The guarded JuiceFS format Job was enabled only for the one-time format and is now disabled in chart values.
+- The format Job succeeded once with `succeeded=1`.
+- The formatter initially recorded the in-cluster RustFS DNS name; this was corrected with `juicefs config` to the client-reachable LAN S3 endpoint: `http://192.168.1.128:30900/juicefs-chunks`.
+- The first RustFS chart revision passed the RustFS secret on the command line; RustFS echoed startup args in logs. The credential was rotated and chart `0.1.1+` no longer passes the secret as a CLI argument.
+
+Validation evidence:
+
+- Metadata DB contains JuiceFS tables: `metadata_table_count=18`.
+- Linux client mounted the JuiceFS volume successfully.
+- Smoke write/read succeeded:
+  - wrote `smoke/timestamp.txt`
+  - wrote `smoke/random.bin` (`8 MiB`)
+  - SHA-256 check passed after unmount/remount.
+- `juicefs bench` completed successfully with small validation settings:
+  - write big file: `82.38 MiB/s`
+  - read big file: `81.58 MiB/s`
+  - write small file: `120.3 files/s`
+  - read small file: `478.9 files/s`
+  - stat file: `2423.9 files/s`
+- RustFS bucket listing after client writes showed JuiceFS objects:
+  - `Total Objects: 28`
+  - `Total Size: 27787326`
+  - sample prefix: `biohazard/chunks/...`
+- Manual validation snapshots were created:
+  - `Pool2/Applications/JuiceFS/rustfs@biohazard-storage-validated-2026-07-01`
+  - `Pool2/Applications/JuiceFS/postgres@biohazard-storage-validated-2026-07-01`
+- Existing TrueNAS snapshot schedule covers the storage datasets:
+  - `Pool2` recursive daily snapshots
+  - retention: `2 WEEK`
+
+Catalog/chart changes shipped:
+
+- `biohazard-storage` `0.1.0`: initial RustFS + dedicated PostgreSQL + guarded JuiceFS format job.
+- `biohazard-storage` `0.1.1`: fixed format job Postgres readiness and stopped passing RustFS secret as command-line args.
+- `biohazard-storage` `0.1.2`: switched format job client image to official `juicedata/mount:ce-v1.3.1`.
+
+Tailnet note:
+
+- LAN storage endpoints are validated.
+- Direct Tailnet NodePort checks currently refuse on `100.97.98.116:30900` and `100.97.98.116:30432`.
+- If artist clients should mount over Tailnet instead of LAN/subnet routing, add Tailscale Serve TCP forwards:
+  - `100.97.98.116:30900 -> 192.168.1.128:30900`
+  - `100.97.98.116:30432 -> 192.168.1.128:30432`
+  - optionally `100.97.98.116:30901 -> 192.168.1.128:30901` for RustFS console access.
+- Preserve the existing Nextcloud Tailnet `9001 -> 192.168.1.128:9001` Serve rule.

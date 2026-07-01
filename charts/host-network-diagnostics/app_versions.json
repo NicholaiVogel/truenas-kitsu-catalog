@@ -34,7 +34,7 @@
             "hostMounts": [
                 {
                     "hostPath": "/",
-                    "readOnly": true
+                    "description": "Read-only host root mount for diagnostics only."
                 }
             ]
         },

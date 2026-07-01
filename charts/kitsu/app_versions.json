@@ -730,7 +730,8 @@
                     }
                 }
             ]
-        }
+        },
+        "changelog": "Add init containers to fix permissions on TrueNAS hostPath datasets for PostgreSQL, Redis, Meilisearch, and Zou previews."
     },
     "0.1.1": {
         "healthy": true,
@@ -1463,6 +1464,7 @@
                     }
                 }
             ]
-        }
+        },
+        "changelog": ""
     }
 }

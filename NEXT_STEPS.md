@@ -458,7 +458,7 @@ Live release:
 
 - Release: `biohazard-storage`
 - Namespace: `ix-biohazard-storage`
-- Chart: `0.1.3`
+- Chart: `0.1.4`
 - Status: `ACTIVE`, desired app pods `2/2` available
 - RustFS image: `rustfs/rustfs:1.0.0-beta.8`
 - JuiceFS client image for format jobs: `juicedata/mount:ce-v1.3.1`
@@ -490,6 +490,7 @@ Important operational notes:
 - Chart `0.1.3+` formats future fresh installs with a client-facing bucket URL by default: `http://<nodeIP>:<rustfsS3NodePort>/<bucket>`.
 - The first RustFS chart revision passed the RustFS secret on the command line; RustFS echoed startup args in logs. The credential was rotated and chart `0.1.1+` no longer passes the secret as a CLI argument.
 - Chart `0.1.3+` leaves secret values blank by default and generates/preserves strong Kubernetes Secret values when explicit values are not supplied.
+- Chart `0.1.4+` rejects old public placeholder credentials (`changeme-*`) instead of preserving them during install/upgrade.
 - Chart `0.1.3+` disables Tailnet `externalIPs` by default to avoid exposing service ports `9000/9001/5432` or colliding with Nextcloud `9001`; use explicit Tailscale Serve forwards if Tailnet storage ports are needed.
 
 Validation evidence:
@@ -515,6 +516,7 @@ Validation evidence:
   - mount succeeded
   - existing `smoke/random.bin` SHA-256 check passed after remount
   - RustFS listing still showed `28` objects / `27787326` bytes
+- Final live upgrade to chart `0.1.4` completed with release `ACTIVE`, pod status `2/2`, and no formatter Jobs present.
 - Manual validation snapshots were created:
   - `Pool2/Applications/JuiceFS/rustfs@biohazard-storage-validated-2026-07-01`
   - `Pool2/Applications/JuiceFS/postgres@biohazard-storage-validated-2026-07-01`
@@ -528,6 +530,7 @@ Catalog/chart changes shipped:
 - `biohazard-storage` `0.1.1`: fixed format job Postgres readiness and stopped passing RustFS secret as command-line args.
 - `biohazard-storage` `0.1.2`: switched format job client image to official `juicedata/mount:ce-v1.3.1`.
 - `biohazard-storage` `0.1.3`: hardened repeatability/security with generated preserved secrets, client-facing JuiceFS bucket URL, Tailnet externalIPs disabled by default, and RustFS pinned to `1.0.0-beta.8`.
+- `biohazard-storage` `0.1.4`: rejects old public placeholder credentials and marks earlier insecure versions unsupported/deprecated in catalog metadata.
 
 Tailnet note:
 

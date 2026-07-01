@@ -1,0 +1,13 @@
+apiVersion: v2
+name: biohazard-storage
+description: "Biohazard VFX storage stack: RustFS object storage and dedicated PostgreSQL metadata DB for JuiceFS."
+type: application
+version: 0.1.5
+appVersion: "0.1.5"
+kubeVersion: ">=1.24.0-0"
+annotations:
+  title: Biohazard Storage
+maintainers:
+  - name: Biohazard VFX
+    url: https://biohazardvfx.com/
+    email: nicholai@biohazardvfx.com

@@ -3,13 +3,19 @@
 Context:
 
 - Catalog repo: <https://github.com/NicholaiVogel/truenas-kitsu-catalog.git>
-- Chart path in this repo: `truenas-catalog/charts/kitsu/0.1.1/`
-- Biohazard repo commit: `e71c521d Bump Kitsu chart for storage class fix`
-- Public catalog HEAD: `324c8e6 Bump Kitsu chart for storage class fix`
-- TrueNAS Dragonfish API/UI: `https://100.97.98.116:8443` over Tailscale
-- Current failure: release was created but pods stayed DEPLOYING because PVCs could not bind. Later hostPath retries ran into TrueNAS middleware/chart-release API timeouts. Kitsu is not currently reachable on `30080`.
-
-Do **not** spend time debugging port `30080` until the failed chart release and Kubernetes leftovers are cleaned up. `connection refused` is expected while the app has no healthy Service/Pods.
+- Chart path in this repo: `truenas-catalog/charts/kitsu/`
+- Biohazard repo commit: `11cffcff Add host-network mode to Tailnet bridge chart`
+- Public catalog HEAD: `08c1bcf Add host-network mode to Tailnet bridge chart`
+- TrueNAS Dragonfish API/UI: `https://100.97.98.116:8443` over Tailscale or `https://192.168.1.128:8443` on LAN
+- Current Kitsu status: `kitsu-prod` is live on chart `0.1.3`, `ACTIVE`, `7/7` pods available.
+- Current Kitsu endpoints:
+  - `http://192.168.1.128:30080/`
+  - `http://100.97.98.116:30080/`
+- Current Nextcloud endpoints:
+  - LAN legacy URL preserved: `http://192.168.1.128:9001/`
+  - LAN native NodePort after workaround: `http://192.168.1.128:30091/`
+  - Tailnet working fallback: `http://100.97.98.116:19001/`
+  - Tailnet `http://100.97.98.116:9001/` still resets before traffic reaches Kubernetes/host-network proxy; treat as a host/Tailscale packet-handling issue, not a Nextcloud app-health issue.
 
 ---
 
@@ -396,16 +402,19 @@ Important notes:
 - The router/network is `192.168.1.1/24`.
 - Kubernetes `node_ip` was changed to `192.168.1.128`.
 - `192.168.1.128/24` was persisted on interface `enp37s0f0` so it appears in Kubernetes bind choices.
-- The Tailscale endpoint `100.97.98.116` stopped responding after the network change; use LAN until Tailscale is repaired/verified.
 - The original release name `kitsu` hit a TrueNAS stale release-dataset issue after delete/recreate: `/mnt/Pool2/ix-applications/releases/kitsu/charts/0.1.2` already existed.
 - The working release is named `kitsu-prod` in namespace `ix-kitsu-prod`.
+- Kitsu Tailnet access was restored with chart `0.1.3` using an externalIP Service for `100.97.98.116`.
+- Nextcloud's native NodePort was moved from `9001` to `30091` so a bridge/proxy can preserve LAN `9001` and provide a Tailnet fallback.
 
 Validated state:
 
-- `kitsu-prod` is `ACTIVE` on chart `0.1.2`.
+- `kitsu-prod` is `ACTIVE` on chart `0.1.3`.
 - Pod status is `7/7` available.
 - `GET http://192.168.1.128:30080/` returns the Kitsu frontend HTML.
 - `GET http://192.168.1.128:30080/api` returns Zou API version `1.0.52`.
+- `GET http://100.97.98.116:30080/` returns the Kitsu frontend HTML.
+- `GET http://100.97.98.116:30080/api` returns Zou API version `1.0.52`.
 - Admin login with `admin@example.com` works.
 - Project creation works.
 - Preview upload works via Gazu/Zou.
@@ -419,11 +428,21 @@ Validated state:
 
 Chart fixes shipped:
 
-- `0.1.2` adds hostPath permission init containers for PostgreSQL, Redis, Meilisearch, and Zou preview storage.
-- Catalog metadata now marks `0.1.2` as latest and includes changelog metadata required by TrueNAS upgrade summary.
+- Kitsu `0.1.2` adds hostPath permission init containers for PostgreSQL, Redis, Meilisearch, and Zou preview storage.
+- Kitsu `0.1.3` adds optional Tailnet externalIP exposure for the Kitsu web service.
+- `tailnet-bridges` `0.1.1` adds an in-cluster socat proxy for cross-namespace app access.
+- `tailnet-bridges` `0.1.2` adds optional host-network proxy mode for ports that kube externalIPs cannot claim.
+- Catalog metadata marks latest chart versions correctly and includes changelog metadata required by TrueNAS upgrade summary.
+
+Nextcloud Tailnet note:
+
+- `http://100.97.98.116:19001/status.php` returns Nextcloud status JSON.
+- `http://100.97.98.116:19001/apps/files/files/15675289?dir=/02_Projects/Aranoke` reaches Nextcloud and returns `401 Unauthorized` when unauthenticated, which confirms routing works.
+- `http://100.97.98.116:9001/` still resets even with Nextcloud moved off native `9001`, externalIP proxy on `9001`, and a host-network `:9001` proxy active. Because `192.168.1.128:9001` works and `100.97.98.116:19001` works, the remaining `100.97.98.116:9001` issue is likely stale Tailscale/host packet handling for that exact port.
 
 Next recommended step before Phase 6:
 
-1. Repair or intentionally replace the TrueNAS Tailscale path if remote access over Tailnet is still required.
-2. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
-3. Use `kitsu-prod` as the live release unless/until the stale `kitsu` release dataset is safely removed.
+1. If exact Tailnet `9001` is required, inspect host-level Tailscale/packet rules directly on TrueNAS (`tailscale serve status`, listeners, nftables/iptables) and clear the stale port handler.
+2. Otherwise use the working Tailnet fallback `http://100.97.98.116:19001/` for Nextcloud.
+3. Optionally clean up the stale deleted `kitsu` release dataset after a backup/snapshot or during a maintenance window.
+4. Use `kitsu-prod` as the live Kitsu release unless/until the stale `kitsu` release dataset is safely removed.

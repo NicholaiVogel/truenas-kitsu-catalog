@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-rustfs
+  labels: { app.kubernetes.io/name: biohazard-storage, app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: rustfs }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: rustfs }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: biohazard-storage, app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: rustfs }
+    spec:
+      initContainers:
+        - name: permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "mkdir -p /data && chown -R 10001:10001 /data"]
+          volumeMounts: [{ name: data, mountPath: /data }]
+      containers:
+        - name: rustfs
+          image: {{ printf "%s:%s" .Values.image.rustfs.repository .Values.image.rustfs.tag | quote }}
+          imagePullPolicy: {{ .Values.image.rustfs.pullPolicy | quote }}
+          envFrom: [{ secretRef: { name: {{ .Release.Name }}-secrets } }]
+          env:
+            - { name: RUSTFS_ADDRESS, value: ":9000" }
+            - { name: RUSTFS_CONSOLE_ENABLE, value: "true" }
+          args: ["--address", ":9000", "--console-enable", "--access-key", "$(RUSTFS_ACCESS_KEY)", "--secret-key", "$(RUSTFS_SECRET_KEY)", "/data"]
+          ports:
+            - { name: s3, containerPort: 9000, protocol: TCP }
+            - { name: console, containerPort: 9001, protocol: TCP }
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes:
+        - name: data
+          hostPath: { path: {{ .Values.persistence.rustfsHostPath | quote }}, type: Directory }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-rustfs
+  labels: { app.kubernetes.io/name: biohazard-storage, app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: rustfs }
+spec:
+  type: NodePort
+  {{- if and .Values.network.exposeTailnet .Values.network.tailnetIP }}
+  externalIPs: [{{ .Values.network.tailnetIP | quote }}]
+  {{- end }}
+  selector: { app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: rustfs }
+  ports:
+    - { name: s3, port: 9000, targetPort: s3, nodePort: {{ .Values.network.rustfsS3NodePort }}, protocol: TCP }
+    - { name: console, port: 9001, targetPort: console, nodePort: {{ .Values.network.rustfsConsoleNodePort }}, protocol: TCP }

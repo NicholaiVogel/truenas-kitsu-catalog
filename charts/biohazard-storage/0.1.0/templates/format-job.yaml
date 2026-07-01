@@ -1,0 +1,52 @@
+{{- if .Values.juicefs.formatOnce.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.juicefs.formatOnce.jobName | quote }}
+  labels: { app.kubernetes.io/name: biohazard-storage, app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: juicefs-format-once }
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: biohazard-storage, app.kubernetes.io/instance: {{ .Release.Name | quote }}, app.kubernetes.io/component: juicefs-format-once }
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-services-and-bucket
+          image: {{ printf "%s:%s" .Values.image.awscli.repository .Values.image.awscli.tag | quote }}
+          imagePullPolicy: {{ .Values.image.awscli.pullPolicy | quote }}
+          envFrom: [{ secretRef: { name: {{ .Release.Name }}-secrets } }]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              until aws --endpoint-url http://{{ .Release.Name }}-rustfs:9000 s3 ls >/dev/null 2>&1; do echo waiting-rustfs; sleep 5; done
+              aws --endpoint-url http://{{ .Release.Name }}-rustfs:9000 s3 mb s3://{{ .Values.rustfs.bucket }} || true
+              until nc -z {{ .Release.Name }}-postgres 5432; do echo waiting-postgres; sleep 5; done
+        - name: assert-unformatted
+          image: {{ printf "%s:%s" .Values.image.postgres.repository .Values.image.postgres.tag | quote }}
+          imagePullPolicy: {{ .Values.image.postgres.pullPolicy | quote }}
+          envFrom: [{ secretRef: { name: {{ .Release.Name }}-secrets } }]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              count=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h {{ .Release.Name }}-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select count(*) from information_schema.tables where table_schema='public';")
+              if [ "$count" != "0" ]; then echo "metadata DB is not empty; refusing to run juicefs format again"; exit 1; fi
+      containers:
+        - name: juicefs-format
+          image: {{ printf "%s:%s" .Values.image.juicefs.repository .Values.image.juicefs.tag | quote }}
+          imagePullPolicy: {{ .Values.image.juicefs.pullPolicy | quote }}
+          envFrom: [{ secretRef: { name: {{ .Release.Name }}-secrets } }]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              export ACCESS_KEY="$RUSTFS_ACCESS_KEY"
+              export SECRET_KEY="$RUSTFS_SECRET_KEY"
+              export META_PASSWORD="$POSTGRES_PASSWORD"
+              juicefs format --storage s3 \
+                --bucket http://{{ .Release.Name }}-rustfs:9000/{{ .Values.rustfs.bucket }} \
+                "postgres://$POSTGRES_USER@{{ .Release.Name }}-postgres:5432/$POSTGRES_DB?sslmode=disable" \
+                {{ .Values.juicefs.volumeName | quote }}
+{{- end }}

@@ -105,6 +105,43 @@
       "screenshots": [],
       "sources": [],
       "icon_url": "https://www.truenas.com/favicon.ico"
+    },
+    "biohazard-storage": {
+      "app_readme": "<h1>Biohazard Storage</h1>\n<p>RustFS + dedicated PostgreSQL metadata database for JuiceFS.</p>",
+      "categories": [
+        "storage"
+      ],
+      "description": "Biohazard VFX RustFS + JuiceFS metadata storage stack.",
+      "healthy": true,
+      "healthy_error": null,
+      "home": "https://rustfs.com/",
+      "location": "/__w/charts/charts/charts/biohazard-storage",
+      "latest_version": "0.1.0",
+      "latest_app_version": "0.1.0",
+      "latest_human_version": "0.1.0",
+      "last_update": "2026-07-01 00:00:00",
+      "name": "biohazard-storage",
+      "recommended": false,
+      "title": "Biohazard Storage",
+      "maintainers": [
+        {
+          "name": "Biohazard VFX",
+          "url": "https://biohazardvfx.com/",
+          "email": "nicholai@biohazardvfx.com"
+        }
+      ],
+      "tags": [
+        "rustfs",
+        "juicefs",
+        "postgres",
+        "s3"
+      ],
+      "screenshots": [],
+      "sources": [
+        "https://rustfs.com/",
+        "https://juicefs.com/"
+      ],
+      "icon_url": "https://rustfs.com/favicon.ico"
     }
   }
 }

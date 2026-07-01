@@ -1,0 +1,45 @@
+image:
+  rustfs:
+    repository: rustfs/rustfs
+    tag: latest
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  juicefs:
+    repository: juicedata/juicefs
+    tag: latest
+    pullPolicy: IfNotPresent
+  awscli:
+    repository: amazon/aws-cli
+    tag: latest
+    pullPolicy: IfNotPresent
+
+network:
+  nodeIP: 192.168.1.128
+  rustfsS3NodePort: 30900
+  rustfsConsoleNodePort: 30901
+  postgresNodePort: 30432
+  exposeTailnet: true
+  tailnetIP: 100.97.98.116
+
+persistence:
+  rustfsHostPath: /mnt/Pool2/Applications/JuiceFS/rustfs
+  postgresHostPath: /mnt/Pool2/Applications/JuiceFS/postgres
+
+rustfs:
+  accessKey: rustfsadmin
+  secretKey: changeme-rustfs-secret
+  bucket: juicefs-chunks
+
+postgres:
+  user: juicefs
+  password: changeme-postgres-secret
+  database: juicefs_meta
+
+juicefs:
+  volumeName: biohazard
+  formatOnce:
+    enabled: false
+    jobName: biohazard-storage-juicefs-format-once

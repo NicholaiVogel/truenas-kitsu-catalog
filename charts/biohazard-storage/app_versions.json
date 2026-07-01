@@ -1,0 +1,285 @@
+{
+    "0.1.0": {
+        "healthy": true,
+        "supported": true,
+        "healthy_error": null,
+        "location": "/__w/charts/charts/charts/biohazard-storage/0.1.0",
+        "last_update": "2026-07-01 00:00:00",
+        "required_features": [],
+        "human_version": "0.1.0",
+        "version": "0.1.0",
+        "changelog": "Initial RustFS + dedicated PostgreSQL + optional JuiceFS format-once job.",
+        "chart_metadata": {
+            "apiVersion": "v2",
+            "name": "biohazard-storage",
+            "description": "Biohazard VFX storage stack: RustFS object storage and dedicated PostgreSQL metadata DB for JuiceFS.",
+            "type": "application",
+            "version": "0.1.0",
+            "appVersion": "0.1.0",
+            "kubeVersion": ">=1.24.0-0",
+            "annotations": {
+                "title": "Biohazard Storage"
+            },
+            "maintainers": [
+                {
+                    "name": "Biohazard VFX",
+                    "url": "https://biohazardvfx.com/",
+                    "email": "nicholai@biohazardvfx.com"
+                }
+            ]
+        },
+        "app_metadata": {
+            "runAsContext": [],
+            "capabilities": [],
+            "hostMounts": [
+                {
+                    "hostPath": "/mnt/Pool2/Applications/JuiceFS/rustfs",
+                    "description": "RustFS object data dataset"
+                },
+                {
+                    "hostPath": "/mnt/Pool2/Applications/JuiceFS/postgres",
+                    "description": "JuiceFS PostgreSQL metadata dataset"
+                }
+            ]
+        },
+        "schema": {
+            "groups": [
+                {
+                    "name": "Network",
+                    "description": "Exposed ports and Tailnet IP."
+                },
+                {
+                    "name": "Persistence",
+                    "description": "HostPath datasets."
+                },
+                {
+                    "name": "Credentials",
+                    "description": "RustFS and Postgres credentials."
+                },
+                {
+                    "name": "JuiceFS",
+                    "description": "JuiceFS format-once controls."
+                }
+            ],
+            "questions": [
+                {
+                    "variable": "network",
+                    "label": "Network",
+                    "group": "Network",
+                    "schema": {
+                        "type": "dict",
+                        "attrs": [
+                            {
+                                "variable": "nodeIP",
+                                "label": "Node IP",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "192.168.1.128"
+                                }
+                            },
+                            {
+                                "variable": "rustfsS3NodePort",
+                                "label": "RustFS S3 NodePort",
+                                "schema": {
+                                    "type": "int",
+                                    "required": true,
+                                    "default": 30900,
+                                    "min": 9000,
+                                    "max": 65535
+                                }
+                            },
+                            {
+                                "variable": "rustfsConsoleNodePort",
+                                "label": "RustFS Console NodePort",
+                                "schema": {
+                                    "type": "int",
+                                    "required": true,
+                                    "default": 30901,
+                                    "min": 9000,
+                                    "max": 65535
+                                }
+                            },
+                            {
+                                "variable": "postgresNodePort",
+                                "label": "Postgres NodePort",
+                                "schema": {
+                                    "type": "int",
+                                    "required": true,
+                                    "default": 30432,
+                                    "min": 9000,
+                                    "max": 65535
+                                }
+                            },
+                            {
+                                "variable": "exposeTailnet",
+                                "label": "Expose on Tailnet IP",
+                                "schema": {
+                                    "type": "boolean",
+                                    "default": true
+                                }
+                            },
+                            {
+                                "variable": "tailnetIP",
+                                "label": "Tailnet IP",
+                                "schema": {
+                                    "type": "string",
+                                    "default": "100.97.98.116"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "variable": "persistence",
+                    "label": "Persistence",
+                    "group": "Persistence",
+                    "schema": {
+                        "type": "dict",
+                        "attrs": [
+                            {
+                                "variable": "rustfsHostPath",
+                                "label": "RustFS hostPath",
+                                "schema": {
+                                    "type": "hostpath",
+                                    "required": true,
+                                    "default": "/mnt/Pool2/Applications/JuiceFS/rustfs"
+                                }
+                            },
+                            {
+                                "variable": "postgresHostPath",
+                                "label": "Postgres hostPath",
+                                "schema": {
+                                    "type": "hostpath",
+                                    "required": true,
+                                    "default": "/mnt/Pool2/Applications/JuiceFS/postgres"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "variable": "rustfs",
+                    "label": "RustFS",
+                    "group": "Credentials",
+                    "schema": {
+                        "type": "dict",
+                        "attrs": [
+                            {
+                                "variable": "accessKey",
+                                "label": "Access Key",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "rustfsadmin"
+                                }
+                            },
+                            {
+                                "variable": "secretKey",
+                                "label": "Secret Key",
+                                "schema": {
+                                    "type": "string",
+                                    "private": true,
+                                    "required": true,
+                                    "default": "changeme-rustfs-secret"
+                                }
+                            },
+                            {
+                                "variable": "bucket",
+                                "label": "JuiceFS bucket",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "juicefs-chunks"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "variable": "postgres",
+                    "label": "Postgres",
+                    "group": "Credentials",
+                    "schema": {
+                        "type": "dict",
+                        "attrs": [
+                            {
+                                "variable": "user",
+                                "label": "User",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "juicefs"
+                                }
+                            },
+                            {
+                                "variable": "password",
+                                "label": "Password",
+                                "schema": {
+                                    "type": "string",
+                                    "private": true,
+                                    "required": true,
+                                    "default": "changeme-postgres-secret"
+                                }
+                            },
+                            {
+                                "variable": "database",
+                                "label": "Database",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "juicefs_meta"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "variable": "juicefs",
+                    "label": "JuiceFS",
+                    "group": "JuiceFS",
+                    "schema": {
+                        "type": "dict",
+                        "attrs": [
+                            {
+                                "variable": "volumeName",
+                                "label": "Volume name",
+                                "schema": {
+                                    "type": "string",
+                                    "required": true,
+                                    "default": "biohazard"
+                                }
+                            },
+                            {
+                                "variable": "formatOnce",
+                                "label": "Format Once",
+                                "schema": {
+                                    "type": "dict",
+                                    "attrs": [
+                                        {
+                                            "variable": "enabled",
+                                            "label": "Run one-time format Job",
+                                            "schema": {
+                                                "type": "boolean",
+                                                "default": false
+                                            }
+                                        },
+                                        {
+                                            "variable": "jobName",
+                                            "label": "Format Job Name",
+                                            "schema": {
+                                                "type": "string",
+                                                "required": true,
+                                                "default": "biohazard-storage-juicefs-format-once"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}

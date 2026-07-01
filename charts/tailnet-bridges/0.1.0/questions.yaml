@@ -1,0 +1,43 @@
+groups:
+  - name: Tailnet
+    description: Configure the Tailnet IP and app bridge Services.
+
+questions:
+  - variable: tailnet
+    label: ""
+    group: Tailnet
+    schema:
+      type: dict
+      attrs:
+        - variable: ip
+          label: Tailnet IP
+          schema: { type: string, required: true, default: "100.97.98.116" }
+  - variable: nextcloud
+    label: Nextcloud Bridge
+    group: Tailnet
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable Nextcloud Tailnet Bridge
+          schema: { type: boolean, default: true }
+        - variable: namespace
+          label: Nextcloud Namespace
+          schema: { type: string, required: true, default: ix-nextcloud }
+        - variable: port
+          label: Tailnet Port
+          schema: { type: int, required: true, default: 9001, min: 1, max: 65535 }
+        - variable: targetPort
+          label: Target Port Name
+          schema: { type: string, required: true, default: webui }
+        - variable: selector
+          label: Nextcloud Selector
+          schema:
+            type: dict
+            attrs:
+              - variable: release
+                label: release label
+                schema: { type: string, required: true, default: nextcloud }
+              - variable: podName
+                label: pod.name label
+                schema: { type: string, required: true, default: nextcloud }

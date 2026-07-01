@@ -40,6 +40,39 @@
         "https://github.com/EmberLightVFX/Kitsu-for-Docker"
       ],
       "icon_url": "https://kitsu.cg-wire.com/kitsu.png"
+    },
+    "tailnet-bridges": {
+      "app_readme": "<h1>Tailnet Bridges</h1>\n<p>Expose selected TrueNAS app Services on a Tailscale/Tailnet IP.</p>",
+      "categories": [
+        "networking"
+      ],
+      "description": "Companion Services for exposing selected TrueNAS apps on a Tailnet IP.",
+      "healthy": true,
+      "healthy_error": null,
+      "home": "https://tailscale.com/",
+      "location": "/__w/charts/charts/charts/tailnet-bridges",
+      "latest_version": "0.1.0",
+      "latest_app_version": "0.1.0",
+      "latest_human_version": "0.1.0",
+      "last_update": "2026-07-01 00:00:00",
+      "name": "tailnet-bridges",
+      "recommended": false,
+      "title": "Tailnet Bridges",
+      "maintainers": [
+        {
+          "name": "Biohazard VFX",
+          "url": "https://biohazardvfx.com/",
+          "email": "nicholai@biohazardvfx.com"
+        }
+      ],
+      "tags": [
+        "tailscale",
+        "tailnet",
+        "networking"
+      ],
+      "screenshots": [],
+      "sources": [],
+      "icon_url": "https://tailscale.com/favicon.ico"
     }
   }
 }

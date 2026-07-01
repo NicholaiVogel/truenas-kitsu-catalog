@@ -1,0 +1,23 @@
+{{- if and .Values.nextcloud.enabled .Values.tailnet.ip }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-tailnet
+  namespace: {{ .Values.nextcloud.namespace | quote }}
+  labels:
+    app.kubernetes.io/name: tailnet-bridges
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/component: nextcloud-tailnet
+spec:
+  type: ClusterIP
+  externalIPs:
+    - {{ .Values.tailnet.ip | quote }}
+  ports:
+    - name: http
+      port: {{ .Values.nextcloud.port }}
+      targetPort: {{ .Values.nextcloud.targetPort | quote }}
+      protocol: TCP
+  selector:
+    release: {{ .Values.nextcloud.selector.release | quote }}
+    pod.name: {{ .Values.nextcloud.selector.podName | quote }}
+{{- end }}

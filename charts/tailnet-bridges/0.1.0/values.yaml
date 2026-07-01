@@ -1,0 +1,11 @@
+tailnet:
+  ip: "100.97.98.116"
+
+nextcloud:
+  enabled: true
+  namespace: ix-nextcloud
+  port: 9001
+  selector:
+    release: nextcloud
+    podName: nextcloud
+  targetPort: webui

@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: host-network-diagnostics
+  labels:
+    app.kubernetes.io/name: host-network-diagnostics
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: host-network-diagnostics
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: host-network-diagnostics
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    spec:
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      restartPolicy: Always
+      containers:
+        - name: diag
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command:
+            - /bin/bash
+            - -lc
+            - |
+              set +e
+              echo '=== host-network-diagnostics start ==='
+              date -Is
+              echo '--- identity ---'
+              hostname
+              id
+              echo '--- ip addr tailscale/lan ---'
+              ip -br addr || true
+              ip addr show tailscale0 || true
+              echo '--- routes ---'
+              ip route show table all || true
+              ip rule show || true
+              echo '--- listeners 9001 ---'
+              ss -lntp || true
+              ss -lntp | grep -E '(:9001|:30080|:8443)' || true
+              echo '--- local curls ---'
+              for url in \
+                http://127.0.0.1:9001/status.php \
+                http://192.168.1.128:9001/status.php \
+                http://100.97.98.116:9001/status.php \
+                https://100.97.98.116:9001/status.php \
+                http://100.97.98.116:30080/api; do
+                echo "### $url"
+                curl -k -4 -sS -D - --max-time 8 -o /tmp/diag-body "$url" | sed -n '1,20p' || true
+                head -c 300 /tmp/diag-body 2>/dev/null | tr '\n' ' '; echo
+              done
+              echo '--- nft rules matching ports ---'
+              nft list ruleset 2>/dev/null | grep -n -C 4 -E '9001|30080|8443|tailscale|100\.97\.98\.116' || true
+              echo '--- iptables-save matching ports ---'
+              iptables-save 2>/dev/null | grep -n -C 4 -E '9001|30080|8443|tailscale|100\.97\.98\.116' || true
+              echo '--- host tailscale binary discovery ---'
+              readlink -f /proc/$(pidof tailscaled | awk '{print $1}')/exe || true
+              find /host -xdev -type f \( -name tailscale -o -name tailscaled \) 2>/dev/null | sort || true
+              echo '--- host tailscale commands ---'
+              for bin in /host/usr/bin/tailscale /host/usr/sbin/tailscale /host/usr/local/bin/tailscale /host/usr/local/sbin/tailscale /host/bin/tailscale /host/sbin/tailscale; do
+                if [ -x "$bin" ]; then
+                  echo "using $bin"
+                  "$bin" version || true
+                  "$bin" status || true
+                  "$bin" serve status || true
+                  "$bin" serve --help || true
+                  break
+                fi
+              done
+              echo '=== host-network-diagnostics end; sleeping ==='
+              sleep {{ .Values.sleepSeconds }}
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+              readOnly: true
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory

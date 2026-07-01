@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kitsu.fullname" . }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kitsu
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.web.port }}
+      targetPort: http
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.web.nodePort }}
+      nodePort: {{ .Values.service.web.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "kitsu.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: kitsu
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kitsu.fullname" . }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kitsu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kitsu.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: kitsu
+  template:
+    metadata:
+      labels:
+        {{- include "kitsu.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: kitsu
+    spec:
+      containers:
+        - name: kitsu
+          image: {{ include "kitsu.image" .Values.images.kitsu | quote }}
+          imagePullPolicy: {{ .Values.images.kitsu.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+          volumeMounts:
+            - name: nginx
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          resources:
+            {{- toYaml .Values.resources.kitsu | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 30
+      volumes:
+        - name: nginx
+          configMap:
+            name: {{ include "kitsu.fullname" . }}-nginx

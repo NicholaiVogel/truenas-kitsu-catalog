@@ -1,0 +1,331 @@
+groups:
+  - name: Container Images
+    description: Configure Kitsu, Zou, PostgreSQL, Redis, and Meilisearch images.
+  - name: Kitsu Access
+    description: Configure the public URL, TrueNAS NodePort, and optional Tailnet access.
+  - name: Credentials
+    description: Configure secrets and the bootstrap admin account.
+  - name: Storage Configuration
+    description: Configure persistent storage for database, Redis, Meilisearch, and previews.
+  - name: Services
+    description: Enable optional supporting services.
+  - name: Resources Configuration
+    description: Configure CPU and memory requests/limits.
+
+portals:
+  web_portal:
+    protocols:
+      - "$kubernetes-resource_configmap_portal_protocol"
+    host:
+      - "$kubernetes-resource_configmap_portal_host"
+    ports:
+      - "$kubernetes-resource_configmap_portal_port"
+    path: "$kubernetes-resource_configmap_portal_path"
+
+questions:
+  - variable: images
+    label: ""
+    group: Container Images
+    schema:
+      type: dict
+      attrs:
+        - variable: kitsu
+          label: Kitsu frontend image
+          schema:
+            type: dict
+            attrs:
+              - variable: repository
+                label: Repository
+                schema: { type: string, required: true, default: ghcr.io/emberlightvfx/kitsu-for-docker }
+              - variable: tag
+                label: Tag
+                schema: { type: string, required: true, default: latest }
+              - variable: pullPolicy
+                label: Pull policy
+                schema: { type: string, required: true, default: IfNotPresent }
+        - variable: zou
+          label: Zou API image
+          schema:
+            type: dict
+            attrs:
+              - variable: repository
+                label: Repository
+                schema: { type: string, required: true, default: ghcr.io/emberlightvfx/zou-for-docker }
+              - variable: tag
+                label: Tag
+                schema: { type: string, required: true, default: latest }
+              - variable: pullPolicy
+                label: Pull policy
+                schema: { type: string, required: true, default: IfNotPresent }
+        - variable: postgres
+          label: PostgreSQL image
+          schema:
+            type: dict
+            attrs:
+              - variable: repository
+                label: Repository
+                schema: { type: string, required: true, default: postgres }
+              - variable: tag
+                label: Tag
+                schema: { type: string, required: true, default: "15-alpine" }
+              - variable: pullPolicy
+                label: Pull policy
+                schema: { type: string, required: true, default: IfNotPresent }
+        - variable: redis
+          label: Redis image
+          schema:
+            type: dict
+            attrs:
+              - variable: repository
+                label: Repository
+                schema: { type: string, required: true, default: redis }
+              - variable: tag
+                label: Tag
+                schema: { type: string, required: true, default: "7-alpine" }
+              - variable: pullPolicy
+                label: Pull policy
+                schema: { type: string, required: true, default: IfNotPresent }
+        - variable: meilisearch
+          label: Meilisearch image
+          schema:
+            type: dict
+            attrs:
+              - variable: repository
+                label: Repository
+                schema: { type: string, required: true, default: getmeili/meilisearch }
+              - variable: tag
+                label: Tag
+                schema: { type: string, required: true, default: "v1.8.3" }
+              - variable: pullPolicy
+                label: Pull policy
+                schema: { type: string, required: true, default: IfNotPresent }
+
+  - variable: service
+    label: ""
+    group: Kitsu Access
+    schema:
+      type: dict
+      attrs:
+        - variable: type
+          label: Service Type
+          schema:
+            type: string
+            required: true
+            default: NodePort
+            enum:
+              - value: NodePort
+                description: Expose Kitsu on a TrueNAS node port.
+        - variable: web
+          label: Web UI
+          schema:
+            type: dict
+            attrs:
+              - variable: port
+                label: Service Port
+                schema: { type: int, required: true, default: 80, min: 1, max: 65535 }
+              - variable: nodePort
+                label: Node Port
+                schema: { type: int, required: true, default: 30080, min: 9000, max: 65535 }
+
+  - variable: kitsu
+    label: ""
+    group: Kitsu Access
+    schema:
+      type: dict
+      attrs:
+        - variable: domainName
+          label: Domain Name
+          description: Hostname used in generated emails. Leave blank to use the TrueNAS node IP portal.
+          schema: { type: string, default: "" }
+        - variable: domainProtocol
+          label: Domain Protocol
+          schema:
+            type: string
+            required: true
+            default: http
+            enum:
+              - value: http
+                description: HTTP
+              - value: https
+                description: HTTPS
+
+  - variable: tailnet
+    label: ""
+    group: Kitsu Access
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable Tailnet External IP Service
+          description: Adds a Kubernetes Service externalIP for reaching Kitsu on a Tailscale/Tailnet address.
+          schema: { type: boolean, default: false }
+        - variable: ip
+          label: Tailnet IP
+          description: Tailscale IP for this TrueNAS node, e.g. 100.97.98.116.
+          schema: { type: string, default: "" }
+        - variable: port
+          label: Tailnet Port
+          description: Port to expose on the Tailnet IP.
+          schema: { type: int, required: true, default: 30080, min: 1, max: 65535 }
+
+  - variable: zou
+    label: ""
+    group: Credentials
+    schema:
+      type: dict
+      attrs:
+        - variable: secretKey
+          label: Zou Secret Key
+          description: Leave blank to generate a random secret on install.
+          schema: { type: string, private: true, default: "" }
+        - variable: admin
+          label: Bootstrap Admin
+          schema:
+            type: dict
+            attrs:
+              - variable: email
+                label: Admin Email
+                schema: { type: string, required: true, default: admin@example.com }
+              - variable: password
+                label: Admin Password
+                description: Leave blank to generate a random password, then read it from the Kubernetes Secret.
+                schema: { type: string, private: true, default: "" }
+        - variable: mail
+          label: SMTP Email
+          schema:
+            type: dict
+            attrs:
+              - variable: server
+                label: Mail Server
+                schema: { type: string, default: "" }
+              - variable: port
+                label: Mail Port
+                schema: { type: string, default: "25" }
+              - variable: username
+                label: Mail Username
+                schema: { type: string, default: "" }
+              - variable: password
+                label: Mail Password
+                schema: { type: string, private: true, default: "" }
+              - variable: defaultSender
+                label: Default Sender
+                schema: { type: string, default: no-reply@example.com }
+              - variable: useTls
+                label: Use TLS
+                schema: { type: string, default: "False" }
+              - variable: useSsl
+                label: Use SSL
+                schema: { type: string, default: "False" }
+
+  - variable: postgresql
+    label: PostgreSQL
+    group: Credentials
+    schema:
+      type: dict
+      attrs:
+        - variable: username
+          label: Username
+          schema: { type: string, required: true, default: postgres }
+        - variable: password
+          label: Password
+          description: Leave blank to generate a random password on install.
+          schema: { type: string, private: true, default: "" }
+        - variable: database
+          label: Database
+          schema: { type: string, required: true, default: zoudb }
+
+  - variable: meilisearch
+    label: Meilisearch
+    group: Services
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable Full Text Search
+          schema: { type: boolean, default: true }
+        - variable: masterKey
+          label: Master Key
+          description: Leave blank to generate a random key on install.
+          schema: { type: string, private: true, default: "" }
+
+  - variable: jobs
+    label: Job Queue
+    group: Services
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable Zou Job Worker
+          schema: { type: boolean, default: true }
+
+  - variable: persistence
+    label: ""
+    group: Storage Configuration
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable Persistence
+          schema: { type: boolean, default: true }
+        - variable: type
+          label: Storage Type
+          schema:
+            type: string
+            required: true
+            immutable: true
+            default: pvc
+            enum:
+              - value: pvc
+                description: PersistentVolumeClaim
+              - value: hostPath
+                description: Existing host path / dataset
+        - variable: storageClassName
+          label: Storage Class
+          schema: { type: string, default: "" }
+        - variable: accessMode
+          label: Access Mode
+          schema: { type: string, required: true, default: ReadWriteOnce }
+        - variable: postgresql
+          label: PostgreSQL Data
+          schema:
+            type: dict
+            attrs:
+              - variable: size
+                label: PVC Size
+                schema: { type: string, required: true, default: 20Gi }
+              - variable: hostPath
+                label: Host Path
+                schema: { type: hostpath, default: "" }
+        - variable: redis
+          label: Redis Data
+          schema:
+            type: dict
+            attrs:
+              - variable: size
+                label: PVC Size
+                schema: { type: string, required: true, default: 2Gi }
+              - variable: hostPath
+                label: Host Path
+                schema: { type: hostpath, default: "" }
+        - variable: meilisearch
+          label: Meilisearch Data
+          schema:
+            type: dict
+            attrs:
+              - variable: size
+                label: PVC Size
+                schema: { type: string, required: true, default: 10Gi }
+              - variable: hostPath
+                label: Host Path
+                schema: { type: hostpath, default: "" }
+        - variable: previews
+          label: Preview Files
+          schema:
+            type: dict
+            attrs:
+              - variable: size
+                label: PVC Size
+                schema: { type: string, required: true, default: 100Gi }
+              - variable: hostPath
+                label: Host Path
+                schema: { type: hostpath, default: "" }

@@ -1,0 +1,150 @@
+images:
+  kitsu:
+    repository: ghcr.io/emberlightvfx/kitsu-for-docker
+    tag: latest
+    pullPolicy: IfNotPresent
+  zou:
+    repository: ghcr.io/emberlightvfx/zou-for-docker
+    tag: latest
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+  redis:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  meilisearch:
+    repository: getmeili/meilisearch
+    tag: "v1.8.3"
+    pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  web:
+    port: 80
+    nodePort: 30080
+
+kitsu:
+  domainName: ""
+  domainProtocol: http
+
+zou:
+  # Leave blank to generate and then preserve a random value on install.
+  secretKey: ""
+  apiWorkers: 3
+  eventWorkers: 1
+  admin:
+    email: admin@example.com
+    # Leave blank to generate and then preserve a random bootstrap password on install.
+    password: ""
+  mail:
+    server: ""
+    port: "25"
+    username: ""
+    password: ""
+    defaultSender: no-reply@example.com
+    useTls: "False"
+    useSsl: "False"
+  extraEnv: {}
+
+postgresql:
+  username: postgres
+  # Leave blank to generate and then preserve a random value on install.
+  password: ""
+  database: zoudb
+  port: 5432
+
+redis:
+  port: 6379
+
+meilisearch:
+  enabled: true
+  port: 7700
+  environment: production
+  # Leave blank to generate and then preserve a random value on install.
+  masterKey: ""
+
+jobs:
+  enabled: true
+
+persistence:
+  enabled: true
+  # pvc works with normal Helm. hostPath is useful for existing TrueNAS datasets you create yourself.
+  type: pvc
+  storageClassName: ""
+  accessMode: ReadWriteOnce
+  postgresql:
+    size: 20Gi
+    hostPath: ""
+  redis:
+    size: 2Gi
+    hostPath: ""
+  meilisearch:
+    size: 10Gi
+    hostPath: ""
+  previews:
+    size: 100Gi
+    hostPath: ""
+
+resources:
+  kitsu:
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  zouApi:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+  zouEvents:
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+  zouJobs:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+  postgresql:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+  redis:
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+  meilisearch:
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+tailnet:
+  # Optional extra Service that publishes Kitsu on a Tailscale IP using Kubernetes externalIPs.
+  enabled: false
+  ip: ""
+  port: 30080

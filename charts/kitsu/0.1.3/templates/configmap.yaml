@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kitsu.fullname" . }}-env
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+data:
+  PREVIEW_FOLDER: /opt/zou/previews
+  TMP_DIR: /tmp/zou
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  {{- if .Values.kitsu.domainName }}
+  DOMAIN_NAME: {{ .Values.kitsu.domainName | quote }}
+  {{- end }}
+  DOMAIN_PROTOCOL: {{ .Values.kitsu.domainProtocol | quote }}
+  EVENT_STREAM_HOST: {{ include "kitsu.component" (dict "root" . "component" "zou-events") | quote }}
+  DB_HOST: {{ include "kitsu.component" (dict "root" . "component" "postgresql") | quote }}
+  DB_PORT: {{ .Values.postgresql.port | quote }}
+  DB_USERNAME: {{ .Values.postgresql.username | quote }}
+  DB_USER: {{ .Values.postgresql.username | quote }}
+  DB_DATABASE: {{ .Values.postgresql.database | quote }}
+  DB_DB: {{ .Values.postgresql.database | quote }}
+  POSTGRES_USER: {{ .Values.postgresql.username | quote }}
+  POSTGRES_DB: {{ .Values.postgresql.database | quote }}
+  KV_HOST: {{ include "kitsu.component" (dict "root" . "component" "redis") | quote }}
+  KV_PORT: {{ .Values.redis.port | quote }}
+  ENABLE_JOB_QUEUE: {{ ternary "True" "False" .Values.jobs.enabled | quote }}
+  MAIL_SERVER: {{ .Values.zou.mail.server | quote }}
+  MAIL_PORT: {{ .Values.zou.mail.port | quote }}
+  MAIL_USERNAME: {{ .Values.zou.mail.username | quote }}
+  MAIL_DEFAULT_SENDER: {{ .Values.zou.mail.defaultSender | quote }}
+  MAIL_USE_TLS: {{ .Values.zou.mail.useTls | quote }}
+  MAIL_USE_SSL: {{ .Values.zou.mail.useSsl | quote }}
+  ZOU_ADMIN_EMAIL: {{ .Values.zou.admin.email | quote }}
+  ZOU_API_WORKERS: {{ .Values.zou.apiWorkers | quote }}
+  ZOU_EVENT_WORKERS: {{ .Values.zou.eventWorkers | quote }}
+  {{- if .Values.meilisearch.enabled }}
+  INDEXER_HOST: {{ include "kitsu.component" (dict "root" . "component" "meilisearch") | quote }}
+  INDEXER_PORT: {{ .Values.meilisearch.port | quote }}
+  {{- end }}
+  {{- range $key, $value := .Values.zou.extraEnv }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kitsu.fullname" . }}-nginx
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    worker_processes 1;
+    events { worker_connections 1024; }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      sendfile on;
+      keepalive_timeout 65;
+      server {
+        listen 80;
+        server_name _;
+
+        location /api {
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header Host $host;
+          # Keep the trailing slash: Zou serves API routes at its root while Kitsu calls /api/*.
+          proxy_pass http://{{ include "kitsu.component" (dict "root" . "component" "zou-api") }}:5000/;
+          client_max_body_size 1G;
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
+          send_timeout 600s;
+        }
+
+        location /socket.io {
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "Upgrade";
+          proxy_pass http://{{ include "kitsu.component" (dict "root" . "component" "zou-events") }}:5001;
+        }
+
+        location / {
+          root /opt/kitsu/dist;
+          try_files $uri $uri/ /index.html;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kitsu.fullname" . }}-scripts
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+data:
+  zou-entrypoint.sh: |
+    #!/bin/sh
+    set -eu
+    role="${1:-api}"
+
+    python - <<'PY'
+    import os, socket, time, sys
+    targets = [
+        (os.environ.get("DB_HOST"), int(os.environ.get("DB_PORT", "5432")), "postgresql"),
+        (os.environ.get("KV_HOST"), int(os.environ.get("KV_PORT", "6379")), "redis"),
+    ]
+    if os.environ.get("INDEXER_HOST"):
+        targets.append((os.environ.get("INDEXER_HOST"), int(os.environ.get("INDEXER_PORT", "7700")), "meilisearch"))
+    deadline = time.time() + 180
+    for host, port, name in targets:
+        while True:
+            try:
+                with socket.create_connection((host, port), timeout=3):
+                    print(f"{name} is reachable at {host}:{port}")
+                    break
+            except OSError as exc:
+                if time.time() > deadline:
+                    print(f"Timed out waiting for {name} at {host}:{port}: {exc}", file=sys.stderr)
+                    sys.exit(1)
+                time.sleep(2)
+    PY
+
+    mkdir -p "$PREVIEW_FOLDER" "$TMP_DIR"
+
+    if [ "$role" = "api" ]; then
+      if ! zou is-db-ready; then
+        echo "Zou database is not initialized; running init-db"
+        zou init-db || zou upgrade-db
+      fi
+      zou upgrade-db
+      zou init-data || true
+      if [ -n "${INDEXER_HOST:-}" ]; then
+        zou reset-search-index || true
+      fi
+      if [ -n "${ZOU_ADMIN_EMAIL:-}" ] && [ -n "${ZOU_ADMIN_PASSWORD:-}" ]; then
+        zou create-admin "$ZOU_ADMIN_EMAIL" --password="$ZOU_ADMIN_PASSWORD" || true
+      fi
+      exec gunicorn --error-logfile - --access-logfile - -w "${ZOU_API_WORKERS:-3}" -k gevent -b :5000 zou.app:app
+    fi
+
+    if [ "$role" = "events" ]; then
+      exec gunicorn --error-logfile - --access-logfile - -w "${ZOU_EVENT_WORKERS:-1}" -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -b :5001 zou.event_stream:app
+    fi
+
+    if [ "$role" = "jobs" ]; then
+      exec rq worker -c zou.job_settings
+    fi
+
+    echo "Unknown role: $role" >&2
+    exit 64

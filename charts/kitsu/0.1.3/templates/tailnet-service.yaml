@@ -1,0 +1,21 @@
+{{- if and .Values.tailnet.enabled .Values.tailnet.ip }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kitsu.fullname" . }}-tailnet
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kitsu-tailnet
+spec:
+  type: ClusterIP
+  externalIPs:
+    - {{ .Values.tailnet.ip | quote }}
+  ports:
+    - name: http
+      port: {{ .Values.tailnet.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "kitsu.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: kitsu
+{{- end }}

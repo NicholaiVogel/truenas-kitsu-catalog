@@ -1,0 +1,25 @@
+apiVersion: v2
+name: kitsu
+description: Split self-hosted Kitsu/Zou production tracking stack for animation and VFX studios, packaged for TrueNAS SCALE Dragonfish.
+type: application
+version: 0.1.3
+appVersion: "latest"
+kubeVersion: ">=1.24.0-0"
+home: https://kitsu.cg-wire.com/
+icon: https://kitsu.cg-wire.com/kitsu.png
+sources:
+  - https://github.com/cgwire/kitsu
+  - https://github.com/cgwire/zou
+  - https://github.com/EmberLightVFX/Kitsu-for-Docker
+keywords:
+  - vfx
+  - animation
+  - production-tracking
+  - cgwire
+  - kitsu
+annotations:
+  title: Kitsu
+maintainers:
+  - name: Biohazard VFX
+    url: https://biohazardvfx.com/
+    email: nicholai@biohazardvfx.com

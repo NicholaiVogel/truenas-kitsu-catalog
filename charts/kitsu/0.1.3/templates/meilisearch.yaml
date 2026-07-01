@@ -1,0 +1,85 @@
+{{- if .Values.meilisearch.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "meilisearch") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: meilisearch
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.meilisearch.port }}
+      targetPort: http
+  selector:
+    {{- include "kitsu.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: meilisearch
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "kitsu.component" (dict "root" . "component" "meilisearch") }}
+  labels:
+    {{- include "kitsu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: meilisearch
+spec:
+  serviceName: {{ include "kitsu.component" (dict "root" . "component" "meilisearch") }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kitsu.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: meilisearch
+  template:
+    metadata:
+      labels:
+        {{- include "kitsu.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: meilisearch
+    spec:
+      initContainers:
+        - name: volume-permissions
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec", "mkdir -p /meili_data && chmod -R 0777 /meili_data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /meili_data
+      containers:
+        - name: meilisearch
+          image: {{ include "kitsu.image" .Values.images.meilisearch | quote }}
+          imagePullPolicy: {{ .Values.images.meilisearch.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 7700
+          env:
+            - name: MEILI_ENV
+              value: {{ .Values.meilisearch.environment | quote }}
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kitsu.fullname" . }}
+                  key: MEILI_MASTER_KEY
+          volumeMounts:
+            - name: data
+              mountPath: /meili_data
+          resources:
+            {{- toYaml .Values.resources.meilisearch | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+      volumes:
+        - name: data
+          {{- if and .Values.persistence.enabled (eq .Values.persistence.type "hostPath") }}
+          hostPath:
+            path: {{ required "persistence.meilisearch.hostPath is required when persistence.type=hostPath" .Values.persistence.meilisearch.hostPath | quote }}
+            type: Directory
+          {{- else if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kitsu.component" (dict "root" . "component" "meilisearch") }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

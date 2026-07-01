@@ -35,7 +35,9 @@
             },
             "maintainers": [
                 {
-                    "name": "Biohazard VFX"
+                    "name": "Biohazard VFX",
+                    "url": "https://biohazardvfx.com/",
+                    "email": "nicholai@biohazardvfx.com"
                 }
             ]
         },

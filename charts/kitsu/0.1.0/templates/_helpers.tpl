@@ -36,6 +36,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{ .repository }}:{{ .tag }}
 {{- end -}}
 
+{{- define "kitsu.storageClassName" -}}
+{{- $ixStorageClass := "" -}}
+{{- with .Values.global -}}
+{{- with .ixChartContext -}}
+{{- with .storageClassName -}}
+{{- $ixStorageClass = . -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- default $ixStorageClass .Values.persistence.storageClassName -}}
+{{- end -}}
+
 {{- define "kitsu.secretValue" -}}
 {{- $root := .root -}}
 {{- $key := .key -}}

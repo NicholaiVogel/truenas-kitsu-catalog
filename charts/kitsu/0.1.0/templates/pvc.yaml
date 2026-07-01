@@ -11,8 +11,9 @@ metadata:
 spec:
   accessModes:
     - {{ $root.Values.persistence.accessMode | quote }}
-  {{- if $root.Values.persistence.storageClassName }}
-  storageClassName: {{ $root.Values.persistence.storageClassName | quote }}
+  {{- $storageClassName := include "kitsu.storageClassName" $root }}
+  {{- if $storageClassName }}
+  storageClassName: {{ $storageClassName | quote }}
   {{- end }}
   resources:
     requests:
@@ -29,8 +30,9 @@ metadata:
 spec:
   accessModes:
     - {{ .Values.persistence.accessMode | quote }}
-  {{- if .Values.persistence.storageClassName }}
-  storageClassName: {{ .Values.persistence.storageClassName | quote }}
+  {{- $storageClassName := include "kitsu.storageClassName" . }}
+  {{- if $storageClassName }}
+  storageClassName: {{ $storageClassName | quote }}
   {{- end }}
   resources:
     requests:

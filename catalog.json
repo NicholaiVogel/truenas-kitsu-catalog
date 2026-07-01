@@ -46,14 +46,14 @@
       "categories": [
         "networking"
       ],
-      "description": "Companion proxy Services for exposing selected TrueNAS apps on a Tailnet IP.",
+      "description": "Companion proxy Services for exposing selected TrueNAS apps on Tailnet IPs and host ports.",
       "healthy": true,
       "healthy_error": null,
       "home": "https://tailscale.com/",
       "location": "/__w/charts/charts/charts/tailnet-bridges",
-      "latest_version": "0.1.1",
-      "latest_app_version": "0.1.1",
-      "latest_human_version": "0.1.1",
+      "latest_version": "0.1.2",
+      "latest_app_version": "0.1.2",
+      "latest_human_version": "0.1.2",
       "last_update": "2026-07-01 00:00:00",
       "name": "tailnet-bridges",
       "recommended": false,

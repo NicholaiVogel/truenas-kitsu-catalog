@@ -1,0 +1,52 @@
+{{- if .Values.hostProxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-host-proxy
+  labels:
+    app.kubernetes.io/name: tailnet-bridges
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/component: nextcloud-host-proxy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tailnet-bridges
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+      app.kubernetes.io/component: nextcloud-host-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tailnet-bridges
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        app.kubernetes.io/component: nextcloud-host-proxy
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: socat
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+          args:
+            - -d
+            - -d
+            - {{ printf "TCP-LISTEN:%d,fork,reuseaddr" (int .Values.hostProxy.listenPort) | quote }}
+            - {{ printf "TCP:%s:%d" .Values.hostProxy.targetHost (int .Values.hostProxy.targetPort) | quote }}
+          ports:
+            - name: host-proxy
+              containerPort: {{ .Values.hostProxy.listenPort }}
+              hostPort: {{ .Values.hostProxy.listenPort }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: host-proxy
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: host-proxy
+            initialDelaySeconds: 10
+            periodSeconds: 30
+{{- end }}

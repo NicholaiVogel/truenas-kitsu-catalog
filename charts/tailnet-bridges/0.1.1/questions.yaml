@@ -1,0 +1,54 @@
+groups:
+  - name: Tailnet
+    description: Configure Tailnet bridge proxy Services.
+
+questions:
+  - variable: image
+    label: Proxy Image
+    group: Tailnet
+    schema:
+      type: dict
+      attrs:
+        - variable: repository
+          label: Repository
+          schema: { type: string, required: true, default: alpine/socat }
+        - variable: tag
+          label: Tag
+          schema: { type: string, required: true, default: latest }
+        - variable: pullPolicy
+          label: Pull Policy
+          schema: { type: string, required: true, default: IfNotPresent }
+  - variable: tailnet
+    label: ""
+    group: Tailnet
+    schema:
+      type: dict
+      attrs:
+        - variable: externalIPs
+          label: External IPs
+          schema:
+            type: list
+            required: true
+            default: ["100.97.98.116"]
+            items:
+              - variable: ip
+                label: IP
+                schema: { type: string, required: true }
+  - variable: nextcloud
+    label: Nextcloud Bridge
+    group: Tailnet
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable Nextcloud Tailnet Bridge
+          schema: { type: boolean, default: true }
+        - variable: listenPort
+          label: Tailnet Port
+          schema: { type: int, required: true, default: 9001, min: 1, max: 65535 }
+        - variable: targetHost
+          label: Target Host
+          schema: { type: string, required: true, default: nextcloud.ix-nextcloud.svc.cluster.local }
+        - variable: targetPort
+          label: Target Port
+          schema: { type: int, required: true, default: 9001, min: 1, max: 65535 }

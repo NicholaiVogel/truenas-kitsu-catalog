@@ -1,0 +1,14 @@
+image:
+  repository: alpine/socat
+  tag: latest
+  pullPolicy: IfNotPresent
+
+tailnet:
+  externalIPs:
+    - "100.97.98.116"
+
+nextcloud:
+  enabled: true
+  listenPort: 9001
+  targetHost: nextcloud.ix-nextcloud.svc.cluster.local
+  targetPort: 9001

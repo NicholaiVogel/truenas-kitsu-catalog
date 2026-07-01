@@ -1,0 +1,13 @@
+apiVersion: v2
+name: tailnet-bridges
+description: Small companion Services that expose selected TrueNAS apps on Tailscale/Tailnet external IPs.
+type: application
+version: 0.1.1
+appVersion: "0.1.1"
+kubeVersion: ">=1.24.0-0"
+annotations:
+  title: Tailnet Bridges
+maintainers:
+  - name: Biohazard VFX
+    url: https://biohazardvfx.com/
+    email: nicholai@biohazardvfx.com

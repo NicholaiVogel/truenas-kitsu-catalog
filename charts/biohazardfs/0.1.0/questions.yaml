@@ -1,0 +1,127 @@
+groups:
+  - name: Image
+    description: BiohazardFS server image.
+  - name: Service
+    description: Internal service exposure. Defaults are non-public.
+  - name: Config
+    description: Non-secret runtime config.
+  - name: Secrets
+    description: Existing secret or private secret values.
+questions:
+  - variable: image
+    label: Image
+    group: Image
+    schema:
+      type: dict
+      attrs:
+        - variable: repository
+          label: Repository
+          schema: { type: string, required: true, default: ghcr.io/biohazard-vfx/biohazardfs-server }
+        - variable: tag
+          label: Tag
+          schema: { type: string, required: true, default: 0.1.0-dev }
+        - variable: pullPolicy
+          label: Pull policy
+          schema:
+            type: string
+            required: true
+            default: IfNotPresent
+            enum:
+              - value: IfNotPresent
+                description: IfNotPresent
+              - value: Always
+                description: Always
+  - variable: api
+    label: API
+    group: Service
+    schema:
+      type: dict
+      attrs:
+        - variable: replicas
+          label: API replicas
+          schema: { type: int, required: true, default: 1, min: 1, max: 3 }
+  - variable: worker
+    label: Worker
+    group: Service
+    schema:
+      type: dict
+      attrs:
+        - variable: enabled
+          label: Enable worker deployment
+          schema: { type: boolean, default: false }
+        - variable: replicas
+          label: Worker replicas
+          schema: { type: int, required: true, default: 1, min: 1, max: 3 }
+  - variable: service
+    label: Service
+    group: Service
+    schema:
+      type: dict
+      attrs:
+        - variable: type
+          label: Service type
+          description: Keep ClusterIP unless an explicit exposure plan has been approved.
+          schema:
+            type: string
+            required: true
+            default: ClusterIP
+            enum:
+              - value: ClusterIP
+                description: ClusterIP - internal only
+              - value: NodePort
+                description: NodePort - requires explicit approval before live use
+        - variable: port
+          label: Service port
+          schema: { type: int, required: true, default: 8080, min: 1, max: 65535 }
+        - variable: nodePort
+          label: NodePort
+          description: Only used when service.type is NodePort.
+          schema: { type: int, required: false, default: null, min: 9000, max: 65535 }
+  - variable: config
+    label: Config
+    group: Config
+    schema:
+      type: dict
+      attrs:
+        - variable: publicUrl
+          label: Public URL
+          schema: { type: string, required: true, default: http://biohazardfs.local }
+        - variable: log
+          label: Log level
+          schema: { type: string, required: true, default: info }
+        - variable: objectStoreProvider
+          label: Object-store provider
+          schema: { type: string, required: true, default: rustfs }
+        - variable: objectStoreRegion
+          label: Object-store region
+          schema: { type: string, required: false, default: us-east-1 }
+  - variable: secrets
+    label: Secrets
+    group: Secrets
+    schema:
+      type: dict
+      attrs:
+        - variable: existingSecret
+          label: Existing Kubernetes Secret
+          description: If set, chart uses this secret and ignores private values below.
+          schema: { type: string, required: false, default: "" }
+        - variable: version
+          label: Secret version / rollout trigger
+          description: Change this value after rotating an existing Kubernetes Secret so API/worker pods restart and read fresh environment variables.
+          schema: { type: string, required: false, default: "" }
+        - variable: databaseUrl
+          label: Database URL
+          description: Must include sslmode=disable until BiohazardFS Postgres TLS support lands.
+          schema: { type: string, private: true, required: false, default: "" }
+        - variable: objectStoreEndpoint
+          label: Object-store endpoint
+          schema: { type: string, required: true, default: http://biohazard-storage-rustfs:9000 }
+        - variable: objectStoreBucket
+          label: Object-store bucket
+          schema: { type: string, required: true, default: biohazardfs-content }
+        - variable: objectStoreAccessKeyId
+          label: Object-store access key ID
+          schema: { type: string, private: true, required: false, default: "" }
+        - variable: objectStoreSecretAccessKey
+          label: Object-store secret access key
+          schema: { type: string, private: true, required: false, default: "" }

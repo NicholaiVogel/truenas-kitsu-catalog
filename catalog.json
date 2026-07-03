@@ -142,6 +142,44 @@
         "https://juicefs.com/"
       ],
       "icon_url": "https://rustfs.com/favicon.ico"
+    },
+    "biohazardfs": {
+      "app_readme": "<h1>BiohazardFS</h1>\n<p>BiohazardFS server MVP with Postgres metadata and RustFS/S3-compatible object storage.</p>",
+      "categories": [
+        "storage",
+        "productivity"
+      ],
+      "description": "BiohazardFS server MVP for VFX virtual workspace metadata and content workflows.",
+      "healthy": true,
+      "healthy_error": null,
+      "home": "https://github.com/Biohazard-VFX/BiohazardFS",
+      "location": "/__w/charts/charts/charts/biohazardfs",
+      "latest_version": "0.1.0",
+      "latest_app_version": "0.1.0-dev",
+      "latest_human_version": "0.1.0",
+      "last_update": "2026-07-03 00:00:00",
+      "name": "biohazardfs",
+      "recommended": false,
+      "title": "BiohazardFS",
+      "maintainers": [
+        {
+          "name": "Biohazard VFX",
+          "url": "https://biohazardvfx.com/",
+          "email": "nicholai@biohazardvfx.com"
+        }
+      ],
+      "tags": [
+        "biohazardfs",
+        "vfx",
+        "rustfs",
+        "postgres",
+        "sync"
+      ],
+      "screenshots": [],
+      "sources": [
+        "https://github.com/Biohazard-VFX/BiohazardFS"
+      ],
+      "icon_url": "https://biohazardvfx.com/favicon.svg"
     }
   }
 }

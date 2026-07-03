@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "biohazardfs.fullname" . }}-api
+  labels:
+    app.kubernetes.io/name: {{ include "biohazardfs.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "biohazardfs.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      annotations:
+        checksum/biohazardfs-secret: {{ include "biohazardfs.secretChecksum" . | quote }}
+      labels:
+        app.kubernetes.io/name: {{ include "biohazardfs.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["migrate"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: BIOHAZARDFS_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.databaseUrlKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_PROVIDER
+              value: {{ .Values.config.objectStoreProvider | quote }}
+            {{- if .Values.config.objectStoreRegion }}
+            - name: BIOHAZARDFS_OBJECT_STORE_REGION
+              value: {{ .Values.config.objectStoreRegion | quote }}
+            {{- end }}
+            - name: BIOHAZARDFS_OBJECT_STORE_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreEndpointKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreBucketKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreAccessKeyIdKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreSecretAccessKeyKey | quote }}
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve", "--addr", "0.0.0.0:8080"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: BIOHAZARDFS_SERVER_PUBLIC_URL
+              value: {{ .Values.config.publicUrl | quote }}
+            - name: BIOHAZARDFS_LOG
+              value: {{ .Values.config.log | quote }}
+            - name: BIOHAZARDFS_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.databaseUrlKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_PROVIDER
+              value: {{ .Values.config.objectStoreProvider | quote }}
+            {{- if .Values.config.objectStoreRegion }}
+            - name: BIOHAZARDFS_OBJECT_STORE_REGION
+              value: {{ .Values.config.objectStoreRegion | quote }}
+            {{- end }}
+            - name: BIOHAZARDFS_OBJECT_STORE_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreEndpointKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreBucketKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreAccessKeyIdKey | quote }}
+            - name: BIOHAZARDFS_OBJECT_STORE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "biohazardfs.secretName" . | quote }}
+                  key: {{ .Values.secrets.objectStoreSecretAccessKeyKey | quote }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

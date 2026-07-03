@@ -1,0 +1,13 @@
+apiVersion: v2
+name: biohazardfs
+description: "BiohazardFS server MVP: Rust API, migrations, and RustFS-backed content/file workflow."
+type: application
+version: 0.1.0
+appVersion: "0.1.0-dev"
+kubeVersion: ">=1.24.0-0"
+annotations:
+  title: BiohazardFS
+maintainers:
+  - name: Biohazard VFX
+    url: https://biohazardvfx.com/
+    email: nicholai@biohazardvfx.com

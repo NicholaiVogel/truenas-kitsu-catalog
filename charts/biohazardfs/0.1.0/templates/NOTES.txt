@@ -1,0 +1,6 @@
+BiohazardFS has been installed as {{ .Release.Name }}.
+
+Service: {{ include "biohazardfs.fullname" . }}
+Port: {{ .Values.service.port }}
+
+Run a smoke only with synthetic data and scoped test credentials.

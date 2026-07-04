@@ -76,7 +76,7 @@ questions:
         - variable: nodePort
           label: NodePort
           description: Only used when service.type is NodePort.
-          schema: { type: int, required: false, default: null, min: 9000, max: 65535 }
+          schema: { type: int, required: false, default: 30088, min: 9000, max: 65535 }
   - variable: config
     label: Config
     group: Config

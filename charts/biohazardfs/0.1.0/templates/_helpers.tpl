@@ -19,5 +19,18 @@
 {{- end -}}
 
 {{- define "biohazardfs.secretChecksum" -}}
-{{- printf "%s|%s|%s|%s|%s|%s|%s" .Values.secrets.existingSecret .Values.secrets.version .Values.secrets.databaseUrl .Values.secrets.objectStoreEndpoint .Values.secrets.objectStoreBucket .Values.secrets.objectStoreAccessKeyId .Values.secrets.objectStoreSecretAccessKey | sha256sum -}}
+{{- $base := printf "%s|%s|%s|%s|%s|%s|%s" .Values.secrets.existingSecret .Values.secrets.version .Values.secrets.databaseUrl .Values.secrets.objectStoreEndpoint .Values.secrets.objectStoreBucket .Values.secrets.objectStoreAccessKeyId .Values.secrets.objectStoreSecretAccessKey -}}
+{{- if .Values.image.registryAuth.enabled -}}
+{{- printf "%s|registry:%s|%s|%s" $base .Values.image.registryAuth.server .Values.image.registryAuth.username .Values.image.registryAuth.password | sha256sum -}}
+{{- else -}}
+{{- $base | sha256sum -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "biohazardfs.registryAuthSecretName" -}}
+{{- if .Values.image.registryAuth.secretName -}}
+{{- .Values.image.registryAuth.secretName -}}
+{{- else -}}
+{{- printf "%s-registry" (include "biohazardfs.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
 {{- end -}}

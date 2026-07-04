@@ -27,8 +27,11 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
-      {{- if .Values.image.pullSecrets }}
+      {{- if or .Values.image.registryAuth.enabled .Values.image.pullSecrets }}
       imagePullSecrets:
+        {{- if .Values.image.registryAuth.enabled }}
+        - name: {{ include "biohazardfs.registryAuthSecretName" . | quote }}
+        {{- end }}
         {{- range .Values.image.pullSecrets }}
         - name: {{ . | quote }}
         {{- end }}

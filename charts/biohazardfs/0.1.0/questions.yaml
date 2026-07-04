@@ -32,8 +32,8 @@ questions:
               - value: Always
                 description: Always
         - variable: pullSecrets
-          label: Image pull secret names
-          description: Optional existing Kubernetes docker-registry Secret names for private registries. Leave empty for public images.
+          label: Existing image pull secret names
+          description: Optional existing Kubernetes docker-registry Secret names for private registries. Leave empty for public images or chart-managed registry auth.
           schema:
             type: list
             required: false
@@ -42,6 +42,27 @@ questions:
               - variable: secretName
                 label: Secret name
                 schema: { type: string, required: true }
+        - variable: registryAuth
+          label: Chart-managed registry auth
+          description: Optional docker registry auth Secret created in this release namespace. Enable only when the image registry is private.
+          schema:
+            type: dict
+            attrs:
+              - variable: enabled
+                label: Enable registry auth Secret
+                schema: { type: boolean, default: false }
+              - variable: server
+                label: Registry server
+                schema: { type: string, required: true, default: ghcr.io }
+              - variable: username
+                label: Registry username
+                schema: { type: string, private: true, required: false, default: "" }
+              - variable: password
+                label: Registry token/password
+                schema: { type: string, private: true, required: false, default: "" }
+              - variable: secretName
+                label: Registry Secret name override
+                schema: { type: string, required: false, default: "" }
   - variable: api
     label: API
     group: Service

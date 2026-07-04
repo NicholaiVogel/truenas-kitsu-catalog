@@ -3,6 +3,12 @@ image:
   tag: "0.1.0-dev"
   pullPolicy: IfNotPresent
   pullSecrets: []
+  registryAuth:
+    enabled: false
+    server: ghcr.io
+    username: ""
+    password: ""
+    secretName: ""
 
 api:
   replicas: 1

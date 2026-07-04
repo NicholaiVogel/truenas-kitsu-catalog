@@ -10,6 +10,7 @@ This chart runs the Rust BiohazardFS API server with a migration init container 
 - No public NodePort is exposed by default.
 - Worker deployment is disabled by default.
 - Secrets are passed through Kubernetes Secrets, not argv.
+- Private image pulls use optional existing Kubernetes docker-registry Secrets via `image.pullSecrets`; registry tokens are not stored directly in chart values.
 - The chart does not modify Kitsu, Nextcloud, or the `biohazard-storage` release.
 
 ## Required secret data

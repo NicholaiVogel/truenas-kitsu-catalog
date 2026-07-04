@@ -31,6 +31,17 @@ questions:
                 description: IfNotPresent
               - value: Always
                 description: Always
+        - variable: pullSecrets
+          label: Image pull secret names
+          description: Optional existing Kubernetes docker-registry Secret names for private registries. Leave empty for public images.
+          schema:
+            type: list
+            required: false
+            default: []
+            items:
+              - variable: secretName
+                label: Secret name
+                schema: { type: string, required: true }
   - variable: api
     label: API
     group: Service

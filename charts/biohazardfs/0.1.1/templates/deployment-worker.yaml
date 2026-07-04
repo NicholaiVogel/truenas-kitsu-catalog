@@ -28,6 +28,15 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
+      {{- if or .Values.image.registryAuth.enabled .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- if .Values.image.registryAuth.enabled }}
+        - name: {{ include "biohazardfs.registryAuthSecretName" . | quote }}
+        {{- end }}
+        {{- range .Values.image.pullSecrets }}
+        - name: {{ . | quote }}
+        {{- end }}
+      {{- end }}
       initContainers:
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

@@ -1,19 +1,18 @@
-{{- if .Values.worker.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "biohazardfs.fullname" . }}-worker
+  name: {{ include "biohazardfs.fullname" . }}-api
   labels:
     app.kubernetes.io/name: {{ include "biohazardfs.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/component: worker
+    app.kubernetes.io/component: api
 spec:
-  replicas: {{ .Values.worker.replicas }}
+  replicas: {{ .Values.api.replicas }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "biohazardfs.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
-      app.kubernetes.io/component: worker
+      app.kubernetes.io/component: api
   template:
     metadata:
       annotations:
@@ -21,13 +20,22 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "biohazardfs.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
-        app.kubernetes.io/component: worker
+        app.kubernetes.io/component: api
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
+      {{- if or .Values.image.registryAuth.enabled .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- if .Values.image.registryAuth.enabled }}
+        - name: {{ include "biohazardfs.registryAuthSecretName" . | quote }}
+        {{- end }}
+        {{- range .Values.image.pullSecrets }}
+        - name: {{ . | quote }}
+        {{- end }}
+      {{- end }}
       initContainers:
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -71,16 +79,21 @@ spec:
                   name: {{ include "biohazardfs.secretName" . | quote }}
                   key: {{ .Values.secrets.objectStoreSecretAccessKeyKey | quote }}
       containers:
-        - name: worker
+        - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: ["worker"]
+          args: ["serve", "--addr", "0.0.0.0:8080"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
           env:
+            - name: BIOHAZARDFS_SERVER_PUBLIC_URL
+              value: {{ .Values.config.publicUrl | quote }}
             - name: BIOHAZARDFS_LOG
               value: {{ .Values.config.log | quote }}
             - name: BIOHAZARDFS_DATABASE_URL
@@ -114,6 +127,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "biohazardfs.secretName" . | quote }}
                   key: {{ .Values.secrets.objectStoreSecretAccessKeyKey | quote }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-{{- end }}
